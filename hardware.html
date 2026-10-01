@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hardware Status — TARANG Sonar Payload</title>
+  <meta name="description" content="Payload subsystem health, hardware interfaces, thermal management, and power rails for TARANG TRG-001.">
+  
+  <!-- Google Fonts: Inter + JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Shared CSS -->
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔧</text></svg>">
+
+  <style>
+    /* =============================================
+       Hardware Status Page Custom Styling
+       ============================================= */
+
+    /* Subsystem Cards Grid */
+    .subsystem-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.15rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .hw-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius);
+      padding: 1.2rem 1.25rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: all var(--duration) var(--ease);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hw-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: transparent;
+      transition: background var(--duration) var(--ease);
+    }
+
+    .hw-card:hover {
+      border-color: var(--border-accent);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    .hw-card:hover::before {
+      background: linear-gradient(90deg, var(--cyan), var(--emerald));
+    }
+
+    .hw-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .hw-card-title-group {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .hw-icon-box {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+
+    .hw-subsystem-name {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1.2;
+    }
+
+    .hw-subsystem-tag {
+      font-size: 0.68rem;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+    }
+
+    /* Key-Value Pairs List */
+    .hw-kv-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+      flex: 1;
+    }
+
+    .hw-kv-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.82rem;
+      line-height: 1.3;
+    }
+
+    .hw-kv-label {
+      color: var(--text-secondary);
+      font-size: 0.78rem;
+      font-weight: 500;
+    }
+
+    .hw-kv-value {
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      text-align: right;
+    }
+
+    /* Interface Link Styling */
+    .interface-link-card {
+      margin-bottom: 1.5rem;
+    }
+
+    .interface-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+
+    .interface-table th {
+      background: var(--bg-elevated);
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.9px;
+      color: var(--text-dim);
+      padding: 0.85rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+    }
+
+    .interface-table td {
+      padding: 0.85rem 1.25rem;
+      font-size: 0.84rem;
+      border-bottom: 1px solid var(--border-light);
+      color: var(--text-secondary);
+      vertical-align: middle;
+    }
+
+    .interface-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .interface-table tr:hover td {
+      background: var(--bg-hover);
+    }
+
+    .interface-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 0.78rem;
+      padding: 0.25rem 0.65rem;
+      border-radius: 4px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      color: var(--cyan);
+    }
+
+    .connected-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: var(--font-mono);
+      font-size: 0.84rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .interface-route-arrow {
+      color: var(--cyan);
+      font-weight: bold;
+      margin: 0 0.25rem;
+    }
+
+    /* Gauge Bar Enhancements */
+    .gauge-card-body {
+      display: flex;
+      flex-direction: column;
+      gap: 1.15rem;
+    }
+
+    .gauge-item {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .gauge-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+
+    .gauge-name {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .gauge-metrics {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .gauge-subtext {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      font-weight: 400;
+      margin-left: 0.35rem;
+    }
+
+    .gauge-track {
+      width: 100%;
+      height: 10px;
+      background: var(--bg-surface);
+      border-radius: 5px;
+      overflow: hidden;
+      border: 1px solid var(--border-light);
+      position: relative;
+    }
+
+    .gauge-fill-bar {
+      height: 100%;
+      border-radius: 5px;
+      transition: width 0.8s var(--ease);
+      position: relative;
+    }
+
+    .gauge-fill-bar.cyan {
+      background: linear-gradient(90deg, #0284c7, var(--cyan));
+      box-shadow: 0 0 10px var(--cyan-glow);
+    }
+
+    .gauge-fill-bar.amber {
+      background: linear-gradient(90deg, #d97706, var(--amber));
+      box-shadow: 0 0 10px var(--amber-dim);
+    }
+
+    .gauge-fill-bar.green {
+      background: linear-gradient(90deg, #16a34a, var(--green));
+      box-shadow: 0 0 10px var(--green-dim);
+    }
+
+    /* Header Stat Pills */
+    .header-summary-row {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .header-stat-pill {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.75rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 20px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+    }
+
+    .header-stat-pill .label {
+      color: var(--text-muted);
+    }
+
+    .header-stat-pill .value {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Mobile Hamburger Toggle -->
+  <button class="mobile-toggle" aria-label="Toggle Navigation Menu">☰</button>
+
+  <div class="dashboard">
+    <!-- ==================== SIDEBAR ==================== -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-brand">
+          <div class="sidebar-logo">TRG</div>
+          <div>
+            <div class="sidebar-title">Adaptive Sonar Payload</div>
+            <div class="sidebar-subtitle">TARANG · TRG-001</div>
+          </div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">Navigation</div>
+        <a href="index.html" class="nav-item">
+          <span class="nav-icon">📊</span>
+          <span>Overview</span>
+        </a>
+        <a href="live-sonar.html" class="nav-item">
+          <span class="nav-icon">📡</span>
+          <span>Live Sonar</span>
+        </a>
+        <a href="adaptive-control.html" class="nav-item">
+          <span class="nav-icon">🎯</span>
+          <span>Adaptive Control</span>
+        </a>
+        <a href="waveforms.html" class="nav-item">
+          <span class="nav-icon">〰️</span>
+          <span>Waveforms</span>
+        </a>
+        <a href="power.html" class="nav-item">
+          <span class="nav-icon">⚡</span>
+          <span>Power Optimization</span>
+        </a>
+        <a href="experiments.html" class="nav-item">
+          <span class="nav-icon">🧪</span>
+          <span>Experiments</span>
+        </a>
+        <a href="hardware.html" class="nav-item active">
+          <span class="nav-icon">🔧</span>
+          <span>Hardware</span>
+        </a>
+        <a href="logs.html" class="nav-item">
+          <span class="nav-icon">📋</span>
+          <span>System Logs</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="sidebar-status">
+          <span class="status-dot"></span>
+          <span>TRG-001 Online</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ==================== MAIN CONTENT ==================== -->
+    <main class="main-content">
+      <!-- Page Header -->
+      <header class="page-header flex justify-between items-center" style="flex-wrap: wrap; gap: 1rem;">
+        <div>
+          <h1>Hardware Status</h1>
+          <p>Payload subsystem health — TRG-001</p>
+        </div>
+        <div class="header-summary-row">
+          <div class="header-stat-pill">
+            <span class="status-dot"></span>
+            <span class="label">Subsystems:</span>
+            <span class="value text-green">7/7 OK</span>
+          </div>
+          <div class="header-stat-pill">
+            <span class="label">Total Draw:</span>
+            <span class="value text-cyan"><span data-live="180" data-variance="0.03" data-decimals="0">180</span> mA</span>
+          </div>
+          <div class="header-stat-pill">
+            <span class="label">Architecture:</span>
+            <span class="value text-primary">ARM Cortex-M7</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Page Body -->
+      <div class="page-body">
+
+        <!-- ==================== 7 SUBSYSTEM CARDS ==================== -->
+        <div class="subsystem-grid">
+          
+          <!-- Card 1: STM32H743 MCU -->
+          <div class="hw-card">
+            <div class="hw-card-header">
+              <div class="hw-card-title-group">
+                <div class="hw-icon-box">💻</div>
+                <div>
+                  <div class="hw-subsystem-name">STM32H743 MCU</div>
+                  <div class="hw-subsystem-tag">Core Processing Unit</div>
+                </div>
+              </div>
+              <span class="badge badge-green">ONLINE</span>
+            </div>
+            <div class="hw-kv-list">
+              <div class="hw-kv-row">
+                <span class="hw-kv-label">Clock</span>
+                <span class="hw-kv-value">480 MHz</span>
+              </div>
+              <div class="hw-kv-row" style="flex-direction: column; align-items: stretch; gap: 0.25rem;">
+                <div style="display: flex; justify-content: space-between;">
+                  <span class="hw-kv-label">CPU Load</span>
+                  <span class="hw-kv-value text-cyan" id="cpu-load-val">34%</span>
+                </div>
+                <div class="progress-bar">
+                  <div class="progress-fill cyan" id="cpu-load-bar" style="width: 34%;"></div>
+                </div>
+              </div>
+              <div class="hw-kv-row">
+                <span class="hw-kv-label">Temp</span>
+                <span class="hw-kv-value text-cyan"><span data-live="41" data-variance="0.02" data-decimals="1">41.0</span>°C</span>
+              </div>
+              <div class="hw-kv-row">
+                <span class="hw-kv-label">DMA Channels</span>
+                <span class="hw-kv-value">4 active</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 2: DAC (MCP4922) -->
+          <div class="hw-card">
+            <div class="hw-card-header">
+              <div class="hw-card-title-group">
+                <div class="hw-icon-box">🎛️</div>
+                <div>
+                  <div class="hw-subsystem-name">DAC (MCP4922)</div>
+                  <div class="hw-subsystem-tag">Waveform Generator</div>
+                </div>
+              </div>
+              <span class="badge badge-green">ACTIVE</span>
+            </div>
+            <div class="hw-kv-list">
+              <div class="hw-kv-row">
+                <span class="hw-kv-label">Resolution</span>
+                <span class="hw-kv-value">12-bit</span>
+              </div>
+              <div class="hw-kv-row">
+                <span class="hw-kv-label">Sample rate</span>
+                <span class="hw-kv-value">1 MSPS</span>
+              </div>
+              <div class="hw-kv-row">
+                <span class="hw-kv-label">Output</span>
+                <span class="hw-kv-value">2.4 Vpp</span>
+              </div>
+              <div class="hw-kv-row">
+                <span class="hw-kv-label">Mode</span>
+                <span class="hw-kv-value text-green">DMA Circular</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 3: ADC (Internal 12-bit) -->
+          <div class="hw-card">
+            <div class="hw-card-header">
+              <div class="hw-card-title-group">
+                <div class="hw-icon-box">📊</div>
+                <div>
+                  <div class="hw-subsystem-name">ADC (Internal 12-bit)</div>
+                  <div class="hw-subsystem-tag">Acoustic & Env Digitizer</div>
+                </div>
+              </div>
+              <span class="badge badge-green">SAMPLING</span>
+            </div>
+            <div class="hw-kv-list">
+              <div class="hw-kv-row">
+                <span class="hw-kv-label">Channels</span>
+                <span class="hw-kv-value">4</span>
+              </div>
+              <div class="hw-kv-row">
+                <span class="hw-kv-label">Rate</span>
+                <span class="hw-kv-value">100 kSPS</span>
+              </div>
+              <div class="hw-kv-row">
+                <span class="hw-kv-label">Resolution</span>
+                <span class="hw-kv-value">12-bit</span>
+              </div>
+              <div class="hw-kv-row">
+                <span class="hw-kv-label">Vref</span>
+                <span class="hw-kv-value">3.3V</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 4: TX Amplifier (OPA1612) -->
+          <div class="hw-card">
+            <div class="hw-card-header">
+              <div class="hw-card-title-group">
+                <div class="hw-icon-box">🔊</div>
+                <div>
+                  <div class="hw-subsystem-name">TX Amplifier (OPA1612)</div>
+                  <div class="hw-subsystem-tag">Power Driver Stage</div>
+                </div>
+              </div>
+              <span class="badge badge-green">ACTIVE</span>
+            </div>
+            <div class="hw-kv-list">
+              <div class="hw-kv-row">
+                <span class="hw-kv-label">Gain</span>
+                <span class="hw-kv-value">18 dB</span>
+              </div>
+              <div class="hw-kv-row">
+                <span class="hw-kv-label">Output power</span>
+                <span class="hw-kv-value text-green">220 mW</span>
+              </div>
+              <div class="hw-kv-row">
+                <span class="hw-kv-label">THD</span>
+                <span class="hw-kv-value">0.003%</span>
+              </div>
+              <div class="hw-kv-row">
+                <span class="hw-kv-label">Load</span>
+                <span class="hw-kv-value">50 Ω</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 5: Hydrophone (Rx) -->
+          <div class="hw-card">
+            <div class="hw-card-header">
+              <div class="hw-card-title-group">
+                <div class="hw-icon-box">👂</div>
+                <div>
+                  <div class="hw-subsystem-name">Hydrophone (Rx)</div>
+                  <div class="hw-subsystem-tag">Acoustic Receiver</div>
+                </div>
+              </div>
+              <span class="badge badge-green">LISTENING</span>
+            </div>
+            <div class="hw-kv-list">
+              <div class="hw-kv-row">
+                <span class="hw-kv-label">Sensitivity</span>
+                <span class="hw-kv-value">-180 dB re 1V/µPa</span>
+              </div>
+              <div class="hw-kv-row">
+                <span class="hw-kv-label">Bandwidth</span>
+                <span class="hw-kv-value">1–500 kHz</span>
+              </div>
+              <div class="hw-kv-row">
+                <span class="hw-kv-label">Preamp gain</span>
+                <span class="hw-kv-value text-cyan">26 dB</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 6: Transducer (Tx) -->
+          <div class="hw-card">
+            <div class="hw-card-header">
+              <div class="hw-card-title-group">
+                <div class="hw-icon-box">📡</div>
+                <div>
+                  <div class="hw-subsystem-name">Transducer (Tx)</div>
+                  <div class="hw-subsystem-tag">Piezo Projector</div>
+                </div>
+              </div>
+              <span class="badge badge-cyan">PINGING</span>
+            </div>
+            <div class="hw-kv-list">
+              <div class="hw-kv-row">
+                <span class="hw-kv-label">Type</span>
+                <span class="hw-kv-value">PZT ceramic</span>
+              </div>
+              <div class="hw-kv-row">
+                <span class="hw-kv-label">Resonance</span>
+                <span class="hw-kv-value text-cyan">35 kHz</span>
+              </div>
+              <div class="hw-kv-row">
+                <span class="hw-kv-label">Beam width</span>
+                <span class="hw-kv-value">60°</span>
+              </div>
+              <div class="hw-kv-row">
+                <span class="hw-kv-label">TVR</span>
+                <span class="hw-kv-value">145 dB</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 7: Power Supply -->
+          <div class="hw-card">
+            <div class="hw-card-header">
+              <div class="hw-card-title-group">
+                <div class="hw-icon-box">🔋</div>
+                <div>
+                  <div class="hw-subsystem-name">Power Supply</div>
+                  <div class="hw-subsystem-tag">Power Distribution Unit</div>
+                </div>
+              </div>
+              <span class="badge badge-green">NOMINAL</span>
+            </div>
+            <div class="hw-kv-list">
+              <div class="hw-kv-row">
+                <span class="hw-kv-label">Battery</span>
+                <span class="hw-kv-value">14.4V / 5200 mAh</span>
+              </div>
+              <div class="hw-kv-row">
+                <span class="hw-kv-label">Current draw</span>
+                <span class="hw-kv-value text-cyan"><span data-live="180" data-variance="0.04" data-decimals="0">180</span> mA</span>
+              </div>
+              <div class="hw-kv-row">
+                <span class="hw-kv-label">Remaining</span>
+                <span class="hw-kv-value text-green">72%</span>
+              </div>
+              <div class="hw-kv-row">
+                <span class="hw-kv-label">Regulation</span>
+                <span class="hw-kv-value">LDO 3.3V / 5V</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ==================== INTERFACE LINK CARD ==================== -->
+        <div class="card interface-link-card">
+          <div class="card-header">
+            <div class="card-title">
+              <span>🔗</span> Interface Link
+            </div>
+            <span class="badge badge-cyan">Interconnect Bus Topology</span>
+          </div>
+          <div class="card-body" style="padding: 0;">
+            <div style="overflow-x: auto;">
+              <table class="interface-table data-table">
+                <thead>
+                  <tr>
+                    <th style="width: 40%;">Interface</th>
+                    <th style="width: 60%;">Connected To</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>
+                      <span class="interface-badge">
+                        <span>⚡</span> SPI
+                      </span>
+                    </td>
+                    <td>
+                      <span class="connected-tag">
+                        <span class="interface-route-arrow">→</span> DAC
+                      </span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <span class="interface-badge">
+                        <span>🔄</span> I2C
+                      </span>
+                    </td>
+                    <td>
+                      <span class="connected-tag">
+                        <span class="interface-route-arrow">→</span> Sensors
+                      </span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <span class="interface-badge">
+                        <span>💬</span> UART
+                      </span>
+                    </td>
+                    <td>
+                      <span class="connected-tag">
+                        <span class="interface-route-arrow">→</span> Debug
+                      </span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <span class="interface-badge">
+                        <span>⚡</span> DMA
+                      </span>
+                    </td>
+                    <td>
+                      <span class="connected-tag">
+                        <span class="interface-route-arrow">→</span> DAC Buffer
+                      </span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <span class="interface-badge">
+                        <span>⏱️</span> Timer
+                      </span>
+                    </td>
+                    <td>
+                      <span class="connected-tag">
+                        <span class="interface-route-arrow">→</span> DAC Trigger
+                      </span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <span class="interface-badge">
+                        <span>📈</span> ADC
+                      </span>
+                    </td>
+                    <td>
+                      <span class="connected-tag">
+                        <span class="interface-route-arrow">→</span> Env Sensors
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==================== TWO-COLUMN ROW ==================== -->
+        <div class="grid-2">
+          
+          <!-- Left: Thermal & Rails Card -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <span>🌡️</span> Thermal & Rails
+              </div>
+              <span class="badge badge-green">Within Operational Limits</span>
+            </div>
+            <div class="card-body gauge-card-body">
+              
+              <!-- MCU Temp Gauge: 41°C / 85°C max (48%, cyan fill) -->
+              <div class="gauge-item">
+                <div class="gauge-header">
+                  <span class="gauge-name">
+                    <span>💻</span> MCU
+                  </span>
+                  <span class="gauge-metrics">
+                    <span class="text-cyan"><span data-live="41" data-variance="0.02" data-decimals="1">41.0</span>°C</span>
+                    <span class="gauge-subtext">/ 85°C max (48%)</span>
+                  </span>
+                </div>
+                <div class="gauge-track">
+                  <div class="gauge-fill-bar cyan" style="width: 48%;"></div>
+                </div>
+              </div>
+
+              <!-- Amplifier Temp Gauge: 38°C / 70°C max (54%, amber fill) -->
+              <div class="gauge-item">
+                <div class="gauge-header">
+                  <span class="gauge-name">
+                    <span>🔊</span> Amplifier
+                  </span>
+                  <span class="gauge-metrics">
+                    <span class="text-amber"><span data-live="38" data-variance="0.02" data-decimals="1">38.0</span>°C</span>
+                    <span class="gauge-subtext">/ 70°C max (54%)</span>
+                  </span>
+                </div>
+                <div class="gauge-track">
+                  <div class="gauge-fill-bar amber" style="width: 54%;"></div>
+                </div>
+              </div>
+
+              <!-- 3.3V Rail Gauge: 3.29V (99%, green fill) -->
+              <div class="gauge-item">
+                <div class="gauge-header">
+                  <span class="gauge-name">
+                    <span>⚡</span> 3.3V Rail
+                  </span>
+                  <span class="gauge-metrics">
+                    <span class="text-green"><span data-live="3.29" data-variance="0.003" data-decimals="2">3.29</span>V</span>
+                    <span class="gauge-subtext">(99%)</span>
+                  </span>
+                </div>
+                <div class="gauge-track">
+                  <div class="gauge-fill-bar green" style="width: 99%;"></div>
+                </div>
+              </div>
+
+              <!-- 5V Rail Gauge: 4.98V (99%, green fill) -->
+              <div class="gauge-item">
+                <div class="gauge-header">
+                  <span class="gauge-name">
+                    <span>⚡</span> 5V Rail
+                  </span>
+                  <span class="gauge-metrics">
+                    <span class="text-green"><span data-live="4.98" data-variance="0.003" data-decimals="2">4.98</span>V</span>
+                    <span class="gauge-subtext">(99%)</span>
+                  </span>
+                </div>
+                <div class="gauge-track">
+                  <div class="gauge-fill-bar green" style="width: 99%;"></div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Right: Acquisition Card -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <span>⚙️</span> Acquisition
+              </div>
+              <span class="badge badge-cyan">Real-Time DSP</span>
+            </div>
+            <div class="card-body" style="padding: 1.25rem;">
+              <div class="hw-kv-list" style="gap: 0.95rem;">
+                <div class="hw-kv-row" style="padding-bottom: 0.75rem; border-bottom: 1px solid var(--border-light);">
+                  <span class="hw-kv-label" style="font-size: 0.85rem;">ADC Sample buffer</span>
+                  <span class="hw-kv-value" style="font-size: 0.9rem;">4096 samples</span>
+                </div>
+                <div class="hw-kv-row" style="padding-bottom: 0.75rem; border-bottom: 1px solid var(--border-light);">
+                  <span class="hw-kv-label" style="font-size: 0.85rem;">DMA transfer mode</span>
+                  <span class="hw-kv-value text-green" style="font-size: 0.9rem;">Circular</span>
+                </div>
+                <div class="hw-kv-row" style="padding-bottom: 0.75rem; border-bottom: 1px solid var(--border-light);">
+                  <span class="hw-kv-label" style="font-size: 0.85rem;">Ping interval</span>
+                  <span class="hw-kv-value text-cyan" style="font-size: 0.9rem;">250 ms</span>
+                </div>
+                <div class="hw-kv-row">
+                  <span class="hw-kv-label" style="font-size: 0.85rem;">Matched filter</span>
+                  <span class="hw-kv-value text-purple" style="font-size: 0.9rem;">FIR 128-tap</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Shared JS -->
+  <script src="js/main.js"></script>
+
+  <!-- Page-Specific Dynamic Interactions -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Dynamic CPU load jitter for realistic live telemetry
+      const cpuVal = document.getElementById('cpu-load-val');
+      const cpuBar = document.getElementById('cpu-load-bar');
+
+      if (cpuVal && cpuBar) {
+        setInterval(() => {
+          const load = Math.floor(32 + Math.random() * 5); // 32% to 36%
+          cpuVal.textContent = load + '%';
+          cpuBar.style.width = load + '%';
+        }, 2500);
+      }
+    });
+  </script>
+</body>
+</html>

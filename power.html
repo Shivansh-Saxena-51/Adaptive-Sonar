@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Power Optimization — TARANG Adaptive Sonar Payload</title>
+  <meta name="description" content="Energy budget, duty cycle analysis, and adaptive transmit power optimization for TARANG TRG-001.">
+  
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Shared Stylesheet -->
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+
+  <style>
+    /* ===== Page-Specific Custom Styling ===== */
+    .chart-header-legend {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .legend-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+    }
+
+    .legend-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .legend-line {
+      width: 16px;
+      height: 3px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    .legend-line.dashed {
+      border-top: 2px dashed #fbbf24;
+      background: transparent;
+      height: 0;
+    }
+
+    /* Simulation Note Banner */
+    .simulation-note {
+      background: rgba(251, 191, 36, 0.08);
+      border: 1px solid rgba(251, 191, 36, 0.25);
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1.15rem;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      line-height: 1.45;
+    }
+
+    .simulation-note .note-icon {
+      font-size: 1.25rem;
+      color: var(--amber);
+      flex-shrink: 0;
+    }
+
+    .simulation-note strong {
+      color: var(--amber);
+      font-weight: 600;
+    }
+
+    /* Donut Legend */
+    .donut-legend-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 0.85rem;
+      margin-top: 1.25rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border-light);
+    }
+
+    .donut-legend-item {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      background: var(--bg-surface);
+      padding: 0.6rem 0.75rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-light);
+      transition: border-color var(--duration) var(--ease);
+    }
+
+    .donut-legend-item:hover {
+      border-color: var(--border);
+    }
+
+    .donut-legend-header {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .donut-legend-values {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    .donut-legend-pct {
+      font-family: var(--font-mono);
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .donut-legend-mw {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+
+    /* Key metrics sub-bar */
+    .metrics-subbar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.75rem;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border-light);
+    }
+
+    .metric-subitem {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+
+    .metric-sublabel {
+      font-size: 0.68rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      font-weight: 600;
+    }
+
+    .metric-subval {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+
+    /* Battery Widget Enhancement */
+    .battery-visual {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-top: 0.5rem;
+    }
+
+    .battery-bar-wrap {
+      flex: 1;
+      height: 8px;
+      background: var(--bg-surface);
+      border-radius: 4px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .battery-bar-fill {
+      height: 100%;
+      width: 72%;
+      background: linear-gradient(90deg, #34d399, #4ade80);
+      border-radius: 3px;
+    }
+
+    /* Comparison Table Styling */
+    .table-responsive {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    .data-table th {
+      padding: 0.75rem 1rem;
+      background: rgba(24, 24, 27, 0.4);
+    }
+
+    .data-table td {
+      padding: 0.85rem 1rem;
+    }
+
+    .table-badge-col {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    /* Optimization Strategy Cards */
+    .strategy-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      margin-top: 1.25rem;
+    }
+
+    .strategy-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-sm);
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      transition: border-color var(--duration) var(--ease);
+    }
+
+    .strategy-card:hover {
+      border-color: var(--border);
+    }
+
+    .strategy-title {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+    }
+
+    .strategy-desc {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      line-height: 1.45;
+    }
+
+    .strategy-gain {
+      margin-top: auto;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--green);
+      font-weight: 600;
+    }
+
+    @media (max-width: 900px) {
+      .strategy-grid {
+        grid-template-columns: 1fr;
+      }
+      .metrics-subbar {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Mobile Hamburger Toggle -->
+  <button class="mobile-toggle" aria-label="Toggle Navigation Menu">☰</button>
+
+  <div class="dashboard">
+    <!-- ==================== SIDEBAR ==================== -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-brand">
+          <div class="sidebar-logo">TRG</div>
+          <div>
+            <div class="sidebar-title">Adaptive Sonar Payload</div>
+            <div class="sidebar-subtitle">TARANG · TRG-001</div>
+          </div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">Navigation</div>
+        <a href="index.html" class="nav-item">
+          <span class="nav-icon">📊</span>
+          <span>Overview</span>
+        </a>
+        <a href="live-sonar.html" class="nav-item">
+          <span class="nav-icon">📡</span>
+          <span>Live Sonar</span>
+        </a>
+        <a href="adaptive-control.html" class="nav-item">
+          <span class="nav-icon">🎯</span>
+          <span>Adaptive Control</span>
+        </a>
+        <a href="waveforms.html" class="nav-item">
+          <span class="nav-icon">〰️</span>
+          <span>Waveforms</span>
+        </a>
+        <a href="power.html" class="nav-item active">
+          <span class="nav-icon">⚡</span>
+          <span>Power Optimization</span>
+        </a>
+        <a href="experiments.html" class="nav-item">
+          <span class="nav-icon">🧪</span>
+          <span>Experiments</span>
+        </a>
+        <a href="hardware.html" class="nav-item">
+          <span class="nav-icon">🔧</span>
+          <span>Hardware</span>
+        </a>
+        <a href="logs.html" class="nav-item">
+          <span class="nav-icon">📋</span>
+          <span>System Logs</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="sidebar-status">
+          <span class="status-dot"></span>
+          <span>TRG-001 Online</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ==================== MAIN CONTENT ==================== -->
+    <main class="main-content">
+      <!-- Page Header -->
+      <header class="page-header">
+        <h1>Power Optimization</h1>
+        <p>Energy budget and duty analysis for the transmit chain</p>
+      </header>
+
+      <!-- Page Body -->
+      <div class="page-body">
+        
+        <!-- ==================== STATS ROW (GRID-4) ==================== -->
+        <div class="grid-4 mb-2">
+          
+          <!-- Stat 1: Energy / Ping -->
+          <div class="card stat-widget">
+            <div class="stat-label">
+              <span>⚡</span> Energy / Ping
+            </div>
+            <div class="stat-value">
+              <span data-live="12.4" data-variance="0.1" data-decimals="1">12.4</span>
+              <span class="stat-unit">mJ</span>
+            </div>
+            <div class="stat-change positive">
+              <span>↓ 31.9%</span> vs Fixed
+            </div>
+          </div>
+
+          <!-- Stat 2: Avg Power -->
+          <div class="card stat-widget">
+            <div class="stat-label">
+              <span>💡</span> Avg Power
+            </div>
+            <div class="stat-value">
+              <span data-live="49.6" data-variance="0.05" data-decimals="1">49.6</span>
+              <span class="stat-unit">mW</span>
+            </div>
+            <div class="stat-change positive">
+              <span>Target &lt; 60 mW</span>
+            </div>
+          </div>
+
+          <!-- Stat 3: Duty Cycle -->
+          <div class="card stat-widget">
+            <div class="stat-label">
+              <span>⏱️</span> Duty Cycle
+            </div>
+            <div class="stat-value">
+              <span data-live="0.8" data-variance="0.05" data-decimals="1">0.8</span>
+              <span class="stat-unit">%</span>
+            </div>
+            <div class="stat-change neutral">
+              <span>8 ms / 1.0 s PRF</span>
+            </div>
+          </div>
+
+          <!-- Stat 4: Battery Remaining -->
+          <div class="card stat-widget">
+            <div class="stat-label">
+              <span>🔋</span> Battery Remaining
+            </div>
+            <div class="stat-value">
+              72 <span class="stat-unit">%</span>
+            </div>
+            <div class="battery-visual">
+              <div class="battery-bar-wrap">
+                <div class="battery-bar-fill"></div>
+              </div>
+              <span class="badge badge-green">7.4h Ops</span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ==================== MIDDLE ROW: CHARTS (GRID-2) ==================== -->
+        <div class="grid-2 mb-2">
+          
+          <!-- Card 1: Energy per Ping — last 60 cycles -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <span>📈</span> Energy per Ping — last 60 cycles
+              </div>
+              <div class="chart-header-legend">
+                <span class="legend-indicator">
+                  <span class="legend-dot" style="background: var(--cyan);"></span>
+                  TARANG Adaptive
+                </span>
+                <span class="legend-indicator">
+                  <span class="legend-line dashed"></span>
+                  Fixed (18.2 mJ)
+                </span>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="chart-container">
+                <canvas id="energy-chart"></canvas>
+                <div class="chart-label">mJ / Cycle</div>
+              </div>
+              
+              <div class="metrics-subbar">
+                <div class="metric-subitem">
+                  <span class="metric-sublabel">Peak Transmit</span>
+                  <span class="metric-subval text-cyan">14.8 mJ</span>
+                </div>
+                <div class="metric-subitem">
+                  <span class="metric-sublabel">Min Transmit</span>
+                  <span class="metric-subval text-green">9.2 mJ</span>
+                </div>
+                <div class="metric-subitem">
+                  <span class="metric-sublabel">Cycle Mean</span>
+                  <span class="metric-subval">12.4 mJ</span>
+                </div>
+                <div class="metric-subitem">
+                  <span class="metric-sublabel">Saved / Ping</span>
+                  <span class="metric-subval text-green">+5.8 mJ</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 2: Power Budget Breakdown -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <span>🔋</span> Power Budget Breakdown
+              </div>
+              <span class="badge badge-purple">Total 49.6 mW</span>
+            </div>
+            <div class="card-body">
+              <div class="chart-container">
+                <canvas id="power-donut"></canvas>
+              </div>
+
+              <!-- Donut Legend Grid -->
+              <div class="donut-legend-grid">
+                <div class="donut-legend-item">
+                  <div class="donut-legend-header">
+                    <span class="legend-dot" style="background: var(--cyan);"></span>
+                    <span>TX Amplifier</span>
+                  </div>
+                  <div class="donut-legend-values">
+                    <span class="donut-legend-pct text-cyan">45%</span>
+                    <span class="donut-legend-mw">22.3 mW</span>
+                  </div>
+                </div>
+
+                <div class="donut-legend-item">
+                  <div class="donut-legend-header">
+                    <span class="legend-dot" style="background: var(--purple);"></span>
+                    <span>DSP / MCU</span>
+                  </div>
+                  <div class="donut-legend-values">
+                    <span class="donut-legend-pct text-purple">20%</span>
+                    <span class="donut-legend-mw">9.9 mW</span>
+                  </div>
+                </div>
+
+                <div class="donut-legend-item">
+                  <div class="donut-legend-header">
+                    <span class="legend-dot" style="background: var(--green);"></span>
+                    <span>ADC + DAC</span>
+                  </div>
+                  <div class="donut-legend-values">
+                    <span class="donut-legend-pct text-green">15%</span>
+                    <span class="donut-legend-mw">7.4 mW</span>
+                  </div>
+                </div>
+
+                <div class="donut-legend-item">
+                  <div class="donut-legend-header">
+                    <span class="legend-dot" style="background: var(--amber);"></span>
+                    <span>Sensors</span>
+                  </div>
+                  <div class="donut-legend-values">
+                    <span class="donut-legend-pct text-amber">10%</span>
+                    <span class="donut-legend-mw">5.0 mW</span>
+                  </div>
+                </div>
+
+                <div class="donut-legend-item">
+                  <div class="donut-legend-header">
+                    <span class="legend-dot" style="background: var(--red);"></span>
+                    <span>Misc</span>
+                  </div>
+                  <div class="donut-legend-values">
+                    <span class="donut-legend-pct text-red">10%</span>
+                    <span class="donut-legend-mw">5.0 mW</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ==================== FIXED SONAR VS TARANG ADAPTIVE CARD ==================== -->
+        <div class="card mb-2">
+          <div class="card-header">
+            <div class="card-title">
+              <span>⚡</span> Fixed Sonar vs TARANG Adaptive
+            </div>
+            <span class="badge badge-cyan">TRG-001 Architecture Comparison</span>
+          </div>
+          <div class="card-body">
+            
+            <!-- Simulation Disclaimer Note -->
+            <div class="simulation-note">
+              <span class="note-icon">ℹ️</span>
+              <div>
+                <strong>Simulation Output:</strong> Figures are simulation outputs. No energy-saving claim is made until measured on TRG-001 hardware.
+              </div>
+            </div>
+
+            <!-- Comparison Table -->
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Metric</th>
+                    <th>Fixed Sonar</th>
+                    <th>TARANG Adaptive</th>
+                    <th>Saving</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Energy / Ping</strong></td>
+                    <td class="mono">18.2 mJ</td>
+                    <td class="mono text-cyan fw-700">12.4 mJ</td>
+                    <td><span class="text-green mono fw-700">31.9%</span></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Avg Power</strong></td>
+                    <td class="mono">72.8 mW</td>
+                    <td class="mono text-cyan fw-700">49.6 mW</td>
+                    <td><span class="text-green mono fw-700">31.9%</span></td>
+                  </tr>
+                  <tr>
+                    <td><strong>SNR (avg)</strong></td>
+                    <td class="mono">22.1 dB</td>
+                    <td class="mono text-cyan fw-700">25.4 dB</td>
+                    <td><span class="text-green mono fw-700">+3.3 dB</span></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Battery Life</strong></td>
+                    <td class="mono">5.1 h</td>
+                    <td class="mono text-cyan fw-700">7.4 h</td>
+                    <td><span class="text-green mono fw-700">+45.1%</span></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Adaptations / hr</strong></td>
+                    <td class="mono">0</td>
+                    <td class="mono text-cyan fw-700">~100</td>
+                    <td><span class="text-green mono fw-700">∞</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Optimization Mechanism Sub-Cards -->
+            <div class="strategy-grid">
+              <div class="strategy-card">
+                <div class="strategy-title">
+                  <span>⚡</span> Dynamic Gain & Amplitude Scaling
+                </div>
+                <div class="strategy-desc">
+                  Dynamically dials down transmit driver voltage in high-reflectivity or shallow zones where SNR exceeds the 20 dB processing threshold.
+                </div>
+                <div class="strategy-gain">Efficiency Gain: ~18.5% avg</div>
+              </div>
+
+              <div class="strategy-card">
+                <div class="strategy-title">
+                  <span>〰️</span> Chirp Duration Modulation
+                </div>
+                <div class="strategy-desc">
+                  Contracts pulse width from 12 ms down to 4 ms in low-reverberation regimes while maintaining matched-filter pulse compression gain.
+                </div>
+                <div class="strategy-gain">Efficiency Gain: ~9.2% avg</div>
+              </div>
+
+              <div class="strategy-card">
+                <div class="strategy-title">
+                  <span>💤</span> Inter-Ping Power Gating
+                </div>
+                <div class="strategy-desc">
+                  Puts the high-voltage analog transmit bridge into ultra-low-leakage sleep during the 992 ms acoustic listen and idle window.
+                </div>
+                <div class="strategy-gain">Efficiency Gain: ~4.2% avg</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Shared JS -->
+  <script src="js/main.js"></script>
+
+  <!-- Page-Specific Charts and Telemetry Scripts -->
+  <script>
+    /**
+     * Custom Dual Line Chart Drawer
+     * Draws both fixed baseline (dashed amber) and adaptive data (solid cyan + gradient)
+     */
+    function drawDualLineChart(canvasId, fixedData, adaptiveData, options = {}) {
+      const result = getCanvasCtx(canvasId, options.height || 210);
+      if (!result) return;
+      const { ctx, w, h } = result;
+
+      const padding = options.padding || { top: 20, right: 15, bottom: 25, left: 40 };
+      const plotW = w - padding.left - padding.right;
+      const plotH = h - padding.top - padding.bottom;
+
+      ctx.clearRect(0, 0, w, h);
+
+      const yMin = options.yMin !== undefined ? options.yMin : 0;
+      const yMax = options.yMax !== undefined ? options.yMax : 25;
+      const range = yMax - yMin || 1;
+
+      function getX(i, total) { return padding.left + (i / (total - 1)) * plotW; }
+      function getY(v) { return padding.top + plotH - ((v - yMin) / range) * plotH; }
+
+      // 1. Grid & Y-Axis Labels
+      ctx.strokeStyle = 'rgba(39, 39, 42, 0.6)';
+      ctx.lineWidth = 1;
+      ctx.fillStyle = '#71717a';
+      ctx.font = '10px JetBrains Mono, monospace';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+
+      const gridSteps = 5;
+      for (let i = 0; i <= gridSteps; i++) {
+        const val = yMin + (i / gridSteps) * range;
+        const y = getY(val);
+
+        ctx.beginPath();
+        ctx.moveTo(padding.left, y);
+        ctx.lineTo(w - padding.right, y);
+        ctx.stroke();
+
+        ctx.fillText(val.toFixed(0) + ' mJ', padding.left - 8, y);
+      }
+
+      // X-Axis Labels
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      const xLabels = ['-60 cyc', '-45 cyc', '-30 cyc', '-15 cyc', 'Current'];
+      xLabels.forEach((lbl, idx) => {
+        const x = padding.left + (idx / (xLabels.length - 1)) * plotW;
+        ctx.fillText(lbl, x, h - padding.bottom + 8);
+      });
+
+      // 2. Fixed Line (Amber Baseline ~18.2 mJ, Dashed)
+      if (fixedData && fixedData.length > 1) {
+        ctx.save();
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        fixedData.forEach((v, i) => {
+          const x = getX(i, fixedData.length);
+          const y = getY(v);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+        ctx.strokeStyle = '#fbbf24';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // 3. Adaptive Line Area Fill (Cyan Gradient)
+      if (adaptiveData && adaptiveData.length > 1) {
+        ctx.beginPath();
+        ctx.moveTo(getX(0, adaptiveData.length), h - padding.bottom);
+        adaptiveData.forEach((v, i) => {
+          ctx.lineTo(getX(i, adaptiveData.length), getY(v));
+        });
+        ctx.lineTo(getX(adaptiveData.length - 1, adaptiveData.length), h - padding.bottom);
+        ctx.closePath();
+
+        const grad = ctx.createLinearGradient(0, padding.top, 0, h - padding.bottom);
+        grad.addColorStop(0, 'rgba(56, 189, 248, 0.22)');
+        grad.addColorStop(1, 'rgba(56, 189, 248, 0.0)');
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        // 4. Adaptive Stroke Line (Cyan Solid)
+        ctx.beginPath();
+        adaptiveData.forEach((v, i) => {
+          const x = getX(i, adaptiveData.length);
+          const y = getY(v);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        // 5. Current Data Point Glow & Marker
+        const lastIdx = adaptiveData.length - 1;
+        const lastX = getX(lastIdx, adaptiveData.length);
+        const lastY = getY(adaptiveData[lastIdx]);
+
+        ctx.beginPath();
+        ctx.arc(lastX, lastY, 4, 0, Math.PI * 2);
+        ctx.fillStyle = '#38bdf8';
+        ctx.fill();
+        ctx.strokeStyle = '#09090b';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    }
+
+    /**
+     * Page chart initialization invoked by main.js on DOM load and window resize
+     */
+    function initPageCharts() {
+      // 1. Dual-line Energy per Ping comparison chart
+      const fixed = Array(60).fill(18.2);
+      const adaptive = generateTimeSeries(60, 12.4, 2);
+
+      drawDualLineChart('energy-chart', fixed, adaptive, {
+        height: 200,
+        yMin: 0,
+        yMax: 25
+      });
+
+      // 2. Power Budget Breakdown Donut Chart
+      const powerSegments = [
+        { label: 'TX Amplifier', value: 45, color: '#38bdf8' },
+        { label: 'DSP / MCU',     value: 20, color: '#a78bfa' },
+        { label: 'ADC + DAC',     value: 15, color: '#4ade80' },
+        { label: 'Sensors',       value: 10, color: '#fbbf24' },
+        { label: 'Misc',          value: 10, color: '#f87171' }
+      ];
+
+      drawDonut('power-donut', powerSegments, {
+        height: 200,
+        centerText: '49.6 mW',
+        centerSub: 'avg power'
+      });
+    }
+  </script>
+
+</body>
+</html>

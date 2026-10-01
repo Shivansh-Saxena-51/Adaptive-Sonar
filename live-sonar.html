@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Sonar — TARANG Acoustic Monitoring Dashboard</title>
+  <meta name="description" content="Real-Time Acoustic Monitoring, Echogram Heatmap, and Telemetry for TARANG TRG-001 Adaptive Sonar Payload">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📡</text></svg>">
+  <style>
+    .echogram-wrapper {
+      position: relative;
+      width: 100%;
+      background: #050508;
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      border: 1px solid var(--border-light);
+    }
+    .echogram-overlay {
+      position: absolute;
+      top: 10px;
+      left: 12px;
+      display: flex;
+      gap: 0.5rem;
+      pointer-events: none;
+      z-index: 2;
+    }
+    .echogram-legend {
+      position: absolute;
+      bottom: 10px;
+      right: 12px;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(12, 12, 14, 0.85);
+      backdrop-filter: blur(4px);
+      padding: 4px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--border-light);
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      z-index: 2;
+    }
+    .echogram-legend-bar {
+      width: 60px;
+      height: 8px;
+      border-radius: 2px;
+      background: linear-gradient(to right, hsl(200, 70%, 15%), hsl(220, 85%, 35%), hsl(240, 100%, 55%));
+    }
+    .kv-list {
+      display: flex;
+      flex-direction: column;
+    }
+    .kv-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.6rem 0;
+      border-bottom: 1px solid var(--border-light);
+      font-size: 0.83rem;
+    }
+    .kv-row:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+    .kv-row:first-child {
+      padding-top: 0;
+    }
+    .kv-key {
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+    }
+    .kv-val {
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-weight: 600;
+      font-size: 0.82rem;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .chart-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .chart-current-val {
+      font-family: var(--font-mono);
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+    .chart-unit {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-weight: 400;
+      margin-left: 2px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Mobile Toggle Button -->
+  <button class="mobile-toggle" aria-label="Toggle Sidebar">☰</button>
+
+  <div class="dashboard">
+
+    <!-- ===== SIDEBAR ===== -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-brand">
+          <div class="sidebar-logo">TRG</div>
+          <div>
+            <div class="sidebar-title">TARANG · TRG-001</div>
+            <div class="sidebar-subtitle">Adaptive Sonar Payload</div>
+          </div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">Navigation</div>
+        <a href="index.html" class="nav-item">
+          <span class="nav-icon">📊</span>
+          <span>Overview</span>
+        </a>
+        <a href="live-sonar.html" class="nav-item active">
+          <span class="nav-icon">📡</span>
+          <span>Live Sonar</span>
+        </a>
+        <a href="adaptive-control.html" class="nav-item">
+          <span class="nav-icon">🎯</span>
+          <span>Adaptive Control</span>
+        </a>
+        <a href="waveforms.html" class="nav-item">
+          <span class="nav-icon">〰️</span>
+          <span>Waveforms</span>
+        </a>
+        <a href="power.html" class="nav-item">
+          <span class="nav-icon">⚡</span>
+          <span>Power Optimization</span>
+        </a>
+        <a href="experiments.html" class="nav-item">
+          <span class="nav-icon">🧪</span>
+          <span>Experiments</span>
+        </a>
+        <a href="hardware.html" class="nav-item">
+          <span class="nav-icon">🔧</span>
+          <span>Hardware</span>
+        </a>
+        <a href="logs.html" class="nav-item">
+          <span class="nav-icon">📋</span>
+          <span>System Logs</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="sidebar-status">
+          <span class="status-dot"></span>
+          <span>TRG-001 Online</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ===== MAIN CONTENT ===== -->
+    <div class="main-content">
+
+      <!-- Page Header -->
+      <header class="page-header">
+        <div class="flex items-center justify-between">
+          <div>
+            <h1>Live Sonar</h1>
+            <p>Real-Time Acoustic Monitoring</p>
+          </div>
+          <div class="flex items-center gap-1">
+            <span class="badge badge-green">
+              <span class="status-dot" style="width:5px;height:5px;display:inline-block;margin-right:2px;"></span>
+              PINGING · 4 Hz
+            </span>
+            <span class="badge badge-cyan">CHANNEL 1 ACTIVE</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Page Body -->
+      <main class="page-body">
+
+        <!-- 1. Full-width Card: Echogram Heatmap -->
+        <div class="card mb-2">
+          <div class="card-header">
+            <div class="card-title">
+              <span>📡</span> Echogram · 35 kHz Channel
+            </div>
+            <div class="flex items-center gap-1">
+              <span class="badge badge-cyan">SWEEP: 10 kHz</span>
+              <span class="badge badge-green">WATERFALL SYNCED</span>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="echogram-wrapper">
+              <div class="echogram-overlay">
+                <span class="badge badge-purple" style="font-size: 0.65rem;">DEPTH: 0 – 60 m</span>
+                <span class="badge badge-cyan" style="font-size: 0.65rem;">PING RATE: 4 Hz</span>
+              </div>
+              <div class="chart-container">
+                <canvas id="echogram-canvas"></canvas>
+              </div>
+              <div class="echogram-legend">
+                <span>-60 dB</span>
+                <div class="echogram-legend-bar"></div>
+                <span>0 dB</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Three-column Row: Status & Environment -->
+        <div class="grid-3 mb-2">
+
+          <!-- Transmission Card -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <span>📻</span> Transmission
+              </div>
+              <span class="badge badge-cyan">TX ACTIVE</span>
+            </div>
+            <div class="card-body">
+              <div class="kv-list">
+                <div class="kv-row">
+                  <span class="kv-key">Mode</span>
+                  <span class="kv-val">LFM Chirp</span>
+                </div>
+                <div class="kv-row">
+                  <span class="kv-key">Freq</span>
+                  <span class="kv-val">35 kHz</span>
+                </div>
+                <div class="kv-row">
+                  <span class="kv-key">BW</span>
+                  <span class="kv-val">10 kHz</span>
+                </div>
+                <div class="kv-row">
+                  <span class="kv-key">Duration</span>
+                  <span class="kv-val">2.0 ms</span>
+                </div>
+                <div class="kv-row">
+                  <span class="kv-key">Power</span>
+                  <span class="kv-val text-green">45%</span>
+                </div>
+                <div class="kv-row">
+                  <span class="kv-key">PRF</span>
+                  <span class="kv-val">4 Hz</span>
+                </div>
+                <div class="kv-row">
+                  <span class="kv-key">Window</span>
+                  <span class="kv-val">Hamming</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Receive Status Card -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <span>🎛️</span> Receive Status
+              </div>
+              <span class="badge badge-green">LOCKED</span>
+            </div>
+            <div class="card-body">
+              <div class="kv-list">
+                <div class="kv-row">
+                  <span class="kv-key">Samples/ping</span>
+                  <span class="kv-val">4096</span>
+                </div>
+                <div class="kv-row">
+                  <span class="kv-key">Gain</span>
+                  <span class="kv-val text-cyan"><span data-live="32" data-decimals="0">32</span> dB</span>
+                </div>
+                <div class="kv-row">
+                  <span class="kv-key">TVG</span>
+                  <span class="kv-val"><span class="badge badge-green">Active</span></span>
+                </div>
+                <div class="kv-row">
+                  <span class="kv-key">Matched filter</span>
+                  <span class="kv-val"><span class="badge badge-green">Enabled</span></span>
+                </div>
+                <div class="kv-row">
+                  <span class="kv-key">Detection threshold</span>
+                  <span class="kv-val">-18 dB</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Environment Card -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <span>🌊</span> Environment
+              </div>
+              <span class="badge badge-purple">CTD SYNC</span>
+            </div>
+            <div class="card-body">
+              <div class="kv-list">
+                <div class="kv-row">
+                  <span class="kv-key">Depth</span>
+                  <span class="kv-val text-cyan"><span data-live="42.3" data-decimals="1">42.3</span> m</span>
+                </div>
+                <div class="kv-row">
+                  <span class="kv-key">Temp</span>
+                  <span class="kv-val text-amber"><span data-live="22.1" data-decimals="1">22.1</span>°C</span>
+                </div>
+                <div class="kv-row">
+                  <span class="kv-key">Salinity</span>
+                  <span class="kv-val">34.8 PSU</span>
+                </div>
+                <div class="kv-row">
+                  <span class="kv-key">Turbidity</span>
+                  <span class="kv-val text-red"><span data-live="12.4" data-decimals="1">12.4</span> NTU</span>
+                </div>
+                <div class="kv-row">
+                  <span class="kv-key">Sound speed</span>
+                  <span class="kv-val">1523 m/s</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- 3. Three-column Row: Telemetry Line Charts -->
+        <div class="grid-3">
+
+          <!-- SNR Chart Card -->
+          <div class="card">
+            <div class="card-header chart-card-header">
+              <div>
+                <div class="card-title"><span>📶</span> SNR (dB)</div>
+                <div class="card-subtitle">Last 30 Pings · Target: &gt;20 dB</div>
+              </div>
+              <div>
+                <span class="chart-current-val text-cyan"><span data-live="25.2" data-decimals="1">25.2</span><span class="chart-unit">dB</span></span>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="chart-container">
+                <canvas id="snr-chart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Echo Strength Chart Card -->
+          <div class="card">
+            <div class="card-header chart-card-header">
+              <div>
+                <div class="card-title"><span>🔊</span> Echo Strength (%)</div>
+                <div class="card-subtitle">Target Reflection Magnitude</div>
+              </div>
+              <div>
+                <span class="chart-current-val text-green"><span data-live="73.0" data-decimals="1">73.0</span><span class="chart-unit">%</span></span>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="chart-container">
+                <canvas id="echo-chart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Ambient Noise Chart Card -->
+          <div class="card">
+            <div class="card-header chart-card-header">
+              <div>
+                <div class="card-title"><span>📈</span> Ambient Noise (normalised)</div>
+                <div class="card-subtitle">Environmental Hydrophone Floor</div>
+              </div>
+              <div>
+                <span class="chart-current-val text-amber"><span data-live="0.30" data-decimals="2">0.30</span></span>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="chart-container">
+                <canvas id="noise-chart"></canvas>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </main>
+
+    </div>
+
+  </div>
+
+  <!-- Shared JS -->
+  <script src="js/main.js"></script>
+
+  <!-- Page-specific initialization script -->
+  <script>
+    let echogramInterval = null;
+
+    function initPageCharts() {
+      // 1. Draw initial Echogram heatmap
+      drawEchogram('echogram-canvas', { height: 220, cols: 90, rows: 45 });
+
+      // 2. SNR line chart: last 30 readings around 25 dB
+      drawLineChart('snr-chart', generateTimeSeries(30, 25, 3), {
+        height: 160,
+        color: '#38bdf8',
+        fillColor: 'rgba(56, 189, 248, 0.12)',
+        lineWidth: 2,
+        showGrid: true,
+        showDots: true,
+        yMin: 15,
+        yMax: 35
+      });
+
+      // 3. Echo Strength line chart: around 73%, color green
+      drawLineChart('echo-chart', generateTimeSeries(30, 73, 8), {
+        height: 160,
+        color: '#4ade80',
+        fillColor: 'rgba(74, 222, 128, 0.12)',
+        lineWidth: 2,
+        showGrid: true,
+        showDots: true,
+        yMin: 40,
+        yMax: 100
+      });
+
+      // 4. Ambient Noise line chart: around 0.3, color amber
+      drawLineChart('noise-chart', generateTimeSeries(30, 0.3, 0.08), {
+        height: 160,
+        color: '#fbbf24',
+        fillColor: 'rgba(251, 191, 36, 0.12)',
+        lineWidth: 2,
+        showGrid: true,
+        showDots: true,
+        yMin: 0.1,
+        yMax: 0.6
+      });
+
+      // 5. Redraw echogram every 3 seconds for live waterfall effect
+      if (!echogramInterval) {
+        echogramInterval = setInterval(() => {
+          drawEchogram('echogram-canvas', { height: 220, cols: 90, rows: 45 });
+        }, 3000);
+      }
+    }
+  </script>
+
+</body>
+</html>

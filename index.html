@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TARANG — Adaptive Sonar Payload Dashboard</title>
+  <meta name="description" content="TARANG TRG-001 Adaptive Sonar Payload Overview and Real-Time Telemetry Dashboard">
+  
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌊</text></svg>">
+</head>
+<body>
+
+  <!-- Mobile Hamburger Toggle -->
+  <button class="mobile-toggle" aria-label="Toggle Navigation Menu">☰</button>
+
+  <div class="dashboard">
+    <!-- ==================== SIDEBAR ==================== -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-brand">
+          <div class="sidebar-logo">TRG</div>
+          <div>
+            <div class="sidebar-title">Adaptive Sonar Payload</div>
+            <div class="sidebar-subtitle">TARANG · TRG-001</div>
+          </div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">Navigation</div>
+        <a href="index.html" class="nav-item active">
+          <span class="nav-icon">📊</span>
+          <span>Overview</span>
+        </a>
+        <a href="live-sonar.html" class="nav-item">
+          <span class="nav-icon">📡</span>
+          <span>Live Sonar</span>
+        </a>
+        <a href="adaptive-control.html" class="nav-item">
+          <span class="nav-icon">🎯</span>
+          <span>Adaptive Control</span>
+        </a>
+        <a href="waveforms.html" class="nav-item">
+          <span class="nav-icon">〰️</span>
+          <span>Waveforms</span>
+        </a>
+        <a href="power.html" class="nav-item">
+          <span class="nav-icon">⚡</span>
+          <span>Power Optimization</span>
+        </a>
+        <a href="experiments.html" class="nav-item">
+          <span class="nav-icon">🧪</span>
+          <span>Experiments</span>
+        </a>
+        <a href="hardware.html" class="nav-item">
+          <span class="nav-icon">🔧</span>
+          <span>Hardware</span>
+        </a>
+        <a href="logs.html" class="nav-item">
+          <span class="nav-icon">📋</span>
+          <span>System Logs</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="sidebar-status">
+          <span class="status-dot"></span>
+          <span>TRG-001 Online</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ==================== MAIN CONTENT ==================== -->
+    <main class="main-content">
+      <!-- Page Header -->
+      <header class="page-header">
+        <h1>System Overview</h1>
+        <p>Real-time TARANG payload status</p>
+      </header>
+
+      <!-- Page Body -->
+      <div class="page-body">
+        
+        <!-- Signal Chain Card -->
+        <div class="card mb-2">
+          <div class="card-header">
+            <div class="card-title">
+              <span>🔄</span> Signal Chain Pipeline
+            </div>
+            <span class="badge badge-cyan">Real-Time Processing</span>
+          </div>
+          <div class="card-body">
+            <div class="signal-chain">
+              <!-- Stage 01 -->
+              <div class="chain-node">
+                <span class="chain-num">STAGE 01</span>
+                <div class="chain-icon">🤖</div>
+                <span class="chain-label">AUV</span>
+              </div>
+              
+              <div class="chain-arrow pulse">→</div>
+
+              <!-- Stage 02 -->
+              <div class="chain-node">
+                <span class="chain-num">STAGE 02</span>
+                <div class="chain-icon">🌊</div>
+                <span class="chain-label">Environment</span>
+              </div>
+
+              <div class="chain-arrow pulse">→</div>
+
+              <!-- Stage 03 (Active / Glowing) -->
+              <div class="chain-node">
+                <span class="chain-num">STAGE 03</span>
+                <div class="chain-icon active">📡</div>
+                <span class="chain-label">Sonar</span>
+              </div>
+
+              <div class="chain-arrow pulse">→</div>
+
+              <!-- Stage 04 -->
+              <div class="chain-node">
+                <span class="chain-num">STAGE 04</span>
+                <div class="chain-icon">📈</div>
+                <span class="chain-label">Signal Analysis</span>
+              </div>
+
+              <div class="chain-arrow pulse">→</div>
+
+              <!-- Stage 05 -->
+              <div class="chain-node">
+                <span class="chain-num">STAGE 05</span>
+                <div class="chain-icon">🎯</div>
+                <span class="chain-label">Adaptive Decision</span>
+              </div>
+
+              <div class="chain-arrow pulse">→</div>
+
+              <!-- Stage 06 (Active / Glowing) -->
+              <div class="chain-node">
+                <span class="chain-num">STAGE 06</span>
+                <div class="chain-icon active">⚡</div>
+                <span class="chain-label">Transmission</span>
+              </div>
+
+              <div class="chain-arrow pulse">→</div>
+
+              <!-- Stage 07 -->
+              <div class="chain-node">
+                <span class="chain-num">STAGE 07</span>
+                <div class="chain-icon">🔄</div>
+                <span class="chain-label">Feedback</span>
+              </div>
+
+              <div class="chain-arrow pulse">→</div>
+
+              <!-- Stage 08 -->
+              <div class="chain-node">
+                <span class="chain-num">STAGE 08</span>
+                <div class="chain-icon">🔋</div>
+                <span class="chain-label">Energy</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stats Row (grid-4) -->
+        <div class="grid-4 mb-2">
+          <!-- GPS Position -->
+          <div class="card stat-widget">
+            <div class="flex items-center justify-between mb-1">
+              <div class="stat-label">📍 GPS Position</div>
+              <span class="badge badge-green">LOCKED</span>
+            </div>
+            <div class="stat-value" style="font-size: 1.25rem;">18.923°N, 72.835°E</div>
+            <div class="text-xs text-muted mono mt-1">Fix: RTK-DGPS · 14 Sats</div>
+          </div>
+
+          <!-- Depth -->
+          <div class="card stat-widget">
+            <div class="flex items-center justify-between mb-1">
+              <div class="stat-label">⚓ Depth</div>
+              <span class="badge badge-cyan">PRESSURE OK</span>
+            </div>
+            <div class="stat-value">
+              <span data-live="42.3" data-variance="0.02" data-decimals="1">42.3</span><span class="stat-unit">m</span>
+            </div>
+            <div class="text-xs text-muted mono mt-1">Max Mission Depth: 120.0 m</div>
+          </div>
+
+          <!-- SNR -->
+          <div class="card stat-widget">
+            <div class="flex items-center justify-between mb-1">
+              <div class="stat-label">📶 SNR</div>
+              <span class="badge badge-green">GOOD</span>
+            </div>
+            <div class="stat-value">
+              <span data-live="25.4" data-variance="0.03" data-decimals="1">25.4</span><span class="stat-unit">dB</span>
+            </div>
+            <div class="text-xs text-muted mono mt-1">Noise Floor: -92.4 dBm</div>
+          </div>
+
+          <!-- Echo Strength -->
+          <div class="card stat-widget">
+            <div class="flex items-center justify-between mb-1">
+              <div class="stat-label">🔊 Echo Strength</div>
+              <span class="badge badge-cyan">OPTIMAL</span>
+            </div>
+            <div class="stat-value">
+              <span data-live="73" data-variance="0.03" data-decimals="0">73</span><span class="stat-unit">%</span>
+            </div>
+            <div class="text-xs text-muted mono mt-1">Correlation Peak: 0.94</div>
+          </div>
+        </div>
+
+        <!-- Two Columns: Active Transmission & Environment -->
+        <div class="grid-2 mb-2">
+          <!-- Active Transmission Card -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <span>📡</span> Active Transmission
+              </div>
+              <span class="badge badge-green">SYNTHESIZING</span>
+            </div>
+            <div class="card-body">
+              <div class="grid-2 mb-2" style="gap: 0.65rem;">
+                <div style="background: var(--bg-elevated); padding: 0.65rem 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-light);">
+                  <div class="text-xs text-muted" style="text-transform: uppercase; letter-spacing: 0.5px;">Waveform Type</div>
+                  <div class="mono fw-700 text-cyan" style="font-size: 0.95rem; margin-top: 2px;">LFM Chirp</div>
+                </div>
+                <div style="background: var(--bg-elevated); padding: 0.65rem 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-light);">
+                  <div class="text-xs text-muted" style="text-transform: uppercase; letter-spacing: 0.5px;">Center Freq</div>
+                  <div class="mono fw-700 text-primary" style="font-size: 0.95rem; margin-top: 2px;">35 kHz</div>
+                </div>
+                <div style="background: var(--bg-elevated); padding: 0.65rem 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-light);">
+                  <div class="text-xs text-muted" style="text-transform: uppercase; letter-spacing: 0.5px;">Bandwidth</div>
+                  <div class="mono fw-700 text-primary" style="font-size: 0.95rem; margin-top: 2px;">10 kHz</div>
+                </div>
+                <div style="background: var(--bg-elevated); padding: 0.65rem 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-light);">
+                  <div class="text-xs text-muted" style="text-transform: uppercase; letter-spacing: 0.5px;">Pulse Duration</div>
+                  <div class="mono fw-700 text-primary" style="font-size: 0.95rem; margin-top: 2px;">2.0 ms</div>
+                </div>
+                <div style="background: var(--bg-elevated); padding: 0.65rem 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-light);">
+                  <div class="text-xs text-muted" style="text-transform: uppercase; letter-spacing: 0.5px;">Power</div>
+                  <div class="mono fw-700 text-green" style="font-size: 0.95rem; margin-top: 2px;">45%</div>
+                </div>
+                <div style="background: var(--bg-elevated); padding: 0.65rem 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-light);">
+                  <div class="text-xs text-muted" style="text-transform: uppercase; letter-spacing: 0.5px;">Ping Rate</div>
+                  <div class="mono fw-700 text-primary" style="font-size: 0.95rem; margin-top: 2px;">4 Hz</div>
+                </div>
+              </div>
+
+              <!-- Live Waveform Preview Canvas -->
+              <div class="chart-container" style="background: var(--bg-elevated); border: 1px solid var(--border-light); border-radius: var(--radius-sm); padding: 0.5rem 0.75rem; margin-bottom: 1rem;">
+                <canvas id="overview-waveform" height="100"></canvas>
+                <span class="chart-label">WAVEFORM PREVIEW</span>
+              </div>
+
+              <div class="flex items-center justify-between">
+                <div class="text-xs text-muted mono">Auto-adapted for shallow shelf</div>
+                <a href="live-sonar.html" class="btn btn-primary">Open live sonar →</a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Environment Card -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <span>🌊</span> Environment
+              </div>
+              <span class="badge badge-cyan">CTD SENSORS</span>
+            </div>
+            <div class="card-body">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Parameter</th>
+                    <th>Current Value</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Water temp</td>
+                    <td class="mono fw-700 text-primary"><span data-live="22.1" data-variance="0.01" data-decimals="1">22.1</span> °C</td>
+                    <td><span class="badge badge-green">STABLE</span></td>
+                  </tr>
+                  <tr>
+                    <td>Salinity</td>
+                    <td class="mono fw-700 text-primary"><span data-live="34.8" data-variance="0.01" data-decimals="1">34.8</span> PSU</td>
+                    <td><span class="badge badge-green">NOMINAL</span></td>
+                  </tr>
+                  <tr>
+                    <td>Turbidity</td>
+                    <td class="mono fw-700 text-amber"><span data-live="12.4" data-variance="0.04" data-decimals="1">12.4</span> NTU</td>
+                    <td><span class="badge badge-amber">ELEVATED</span></td>
+                  </tr>
+                  <tr>
+                    <td>Sound speed</td>
+                    <td class="mono fw-700 text-cyan"><span data-live="1523" data-variance="0.003" data-decimals="0">1523</span> m/s</td>
+                    <td><span class="badge badge-green">COMPUTED</span></td>
+                  </tr>
+                  <tr>
+                    <td>Sea state</td>
+                    <td class="mono fw-700 text-primary">2 (Slight)</td>
+                    <td><span class="badge badge-cyan">FAVORABLE</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Events Card -->
+        <div class="card mb-2">
+          <div class="card-header">
+            <div class="card-title">
+              <span>📋</span> Recent Events
+            </div>
+            <span class="badge badge-cyan">Real-Time Log</span>
+          </div>
+          <div class="card-body">
+            <ul class="event-list">
+              <li class="event-item">
+                <span class="event-time">00:03:12</span>
+                <span class="event-badge badge-amber">SENSOR</span>
+                <span class="event-msg">Turbidity spike detected (12.4 NTU) — adapting pulse bandwidth</span>
+              </li>
+              <li class="event-item">
+                <span class="event-time">00:02:45</span>
+                <span class="event-badge badge-cyan">CTRL</span>
+                <span class="event-msg">Frequency adjusted 30→35 kHz to mitigate acoustic attenuation</span>
+              </li>
+              <li class="event-item">
+                <span class="event-time">00:02:18</span>
+                <span class="event-badge badge-purple">DSP</span>
+                <span class="event-msg">Matched filter correlation peak locked at 0.94 confidence level</span>
+              </li>
+              <li class="event-item">
+                <span class="event-time">00:01:40</span>
+                <span class="event-badge badge-green">PWR</span>
+                <span class="event-msg">Dynamic power scaled to 45% (saved 1.8W in current depth zone)</span>
+              </li>
+              <li class="event-item">
+                <span class="event-time">00:00:22</span>
+                <span class="event-badge badge-cyan">CTRL</span>
+                <span class="event-msg">LFM Chirp waveform synthesized successfully @ 4 Hz ping rate</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Mission Counters Card -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <span>⏱️</span> Mission Counters
+            </div>
+            <span class="badge badge-green">ACTIVE SORTIE</span>
+          </div>
+          <div class="card-body">
+            <div class="grid-4">
+              <!-- Total Pings -->
+              <div style="background: var(--bg-elevated); padding: 1.25rem; border-radius: var(--radius-sm); border: 1px solid var(--border-light);">
+                <div class="stat-label">Total Pings</div>
+                <div class="stat-value text-cyan">12,847</div>
+                <div class="text-xs text-muted mono mt-1">Loss Rate: 0.02%</div>
+              </div>
+
+              <!-- Adaptations -->
+              <div style="background: var(--bg-elevated); padding: 1.25rem; border-radius: var(--radius-sm); border: 1px solid var(--border-light);">
+                <div class="stat-label">Adaptations</div>
+                <div class="stat-value text-purple">342</div>
+                <div class="text-xs text-muted mono mt-1">Avg Interval: 35.8s</div>
+              </div>
+
+              <!-- Uptime -->
+              <div style="background: var(--bg-elevated); padding: 1.25rem; border-radius: var(--radius-sm); border: 1px solid var(--border-light);">
+                <div class="stat-label">Uptime</div>
+                <div class="stat-value text-green">3h 24m</div>
+                <div class="text-xs text-muted mono mt-1">Boot: 00:00:00 UTC</div>
+              </div>
+
+              <!-- Battery -->
+              <div style="background: var(--bg-elevated); padding: 1.25rem; border-radius: var(--radius-sm); border: 1px solid var(--border-light);">
+                <div class="stat-label">Battery</div>
+                <div class="stat-value text-amber">72%</div>
+                <div class="text-xs text-muted mono mt-1">Est. Remaining: 8h 45m</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Shared Scripts -->
+  <script src="js/main.js"></script>
+
+  <!-- Page Specific Script -->
+  <script>
+    function initPageCharts() {
+      drawWaveform('overview-waveform', 'lfm', {
+        height: 100,
+        color: '#38bdf8',
+        freq: 5,
+        bandwidth: 3
+      });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Adaptive Control — AquaPulse SDT Sonar Payload</title>
+  <meta name="description" content="Closed-loop sensing optimization and real-time adaptive transmission control for AUV sonar payloads.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>">
+  <style>
+    /* ===== Page-Specific Custom Styling ===== */
+    .dashboard-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    /* Feedback Loop Container */
+    .loop-card-body {
+      padding: 1.5rem;
+    }
+
+    .feedback-note-banner {
+      background: rgba(56, 189, 248, 0.08);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1.25rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .feedback-note-text {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+
+    .feedback-note-text strong {
+      color: var(--cyan);
+      font-family: var(--font-mono);
+    }
+
+    .loop-diagram-container {
+      background: var(--bg-input);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius);
+      padding: 1.5rem 1.25rem 1.75rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .loop-track-forward {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+      z-index: 2;
+      gap: 0.5rem;
+    }
+
+    .loop-node {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 0.4rem;
+      flex: 1;
+      min-width: 90px;
+    }
+
+    .loop-node-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      border: 1px solid var(--border);
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+      position: relative;
+      transition: all var(--duration) var(--ease);
+    }
+
+    .loop-node.active .loop-node-icon {
+      border-color: var(--cyan);
+      background: var(--cyan-dim);
+      box-shadow: 0 0 16px var(--cyan-glow);
+    }
+
+    .loop-node-stage {
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .loop-node-name {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .loop-node-detail {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      line-height: 1.2;
+    }
+
+    .loop-forward-arrow {
+      color: var(--cyan);
+      font-size: 1.1rem;
+      opacity: 0.6;
+      animation: loopPulse 1.8s infinite;
+      flex-shrink: 0;
+      margin-top: -1.5rem;
+    }
+
+    /* Return Feedback Path */
+    .loop-return-path {
+      margin-top: 1.5rem;
+      padding-top: 1.2rem;
+      border-top: 2px dashed rgba(56, 189, 248, 0.3);
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .loop-return-tag {
+      background: var(--bg-elevated);
+      border: 1px solid var(--cyan);
+      border-radius: 20px;
+      padding: 0.3rem 0.9rem;
+      font-size: 0.72rem;
+      color: var(--cyan);
+      font-family: var(--font-mono);
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
+    }
+
+    .return-arrow-left {
+      color: var(--cyan);
+      font-weight: 800;
+      font-size: 1rem;
+      animation: returnArrowPulse 1.4s infinite alternate;
+    }
+
+    @keyframes loopPulse {
+      0%, 100% { opacity: 0.3; transform: scale(0.95); }
+      50% { opacity: 1; transform: scale(1.1); color: var(--cyan); }
+    }
+
+    @keyframes returnArrowPulse {
+      0% { transform: translateX(0); opacity: 0.5; }
+      100% { transform: translateX(-6px); opacity: 1; }
+    }
+
+    /* Latest Adaptive Action Card */
+    .action-grid-2col {
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+    }
+
+    .action-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 0.9rem;
+      background: var(--bg-input);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-sm);
+      transition: all var(--duration) var(--ease);
+    }
+
+    .action-row:hover {
+      background: var(--bg-hover);
+      border-color: var(--border);
+    }
+
+    .action-label-col {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .action-label-code {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--text-dim);
+      letter-spacing: 1px;
+      width: 85px;
+    }
+
+    .action-label-title {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .action-value-col {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .action-value-detail {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    /* Resolution on Demand Stepper */
+    .stepper-wrapper {
+      padding: 0.5rem 0 1rem;
+    }
+
+    .stepper-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.25rem;
+    }
+
+    .stepper-track {
+      position: relative;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.75rem;
+    }
+
+    .step-card {
+      background: var(--bg-input);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-sm);
+      padding: 1rem 0.85rem;
+      cursor: pointer;
+      transition: all var(--duration) var(--ease);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .step-card:hover {
+      border-color: var(--border);
+      background: var(--bg-hover);
+    }
+
+    .step-card.active {
+      border-color: var(--cyan);
+      background: rgba(56, 189, 248, 0.07);
+      box-shadow: 0 0 16px rgba(56, 189, 248, 0.15);
+    }
+
+    .step-card.active::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--cyan);
+      border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    }
+
+    .step-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .step-badge-num {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: var(--text-dim);
+    }
+
+    .step-card.active .step-badge-num {
+      color: var(--cyan);
+    }
+
+    .step-name {
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: var(--text-secondary);
+    }
+
+    .step-card.active .step-name {
+      color: var(--text-primary);
+    }
+
+    .step-desc {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      line-height: 1.3;
+    }
+
+    .step-param-tag {
+      margin-top: 0.3rem;
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      color: var(--text-dim);
+    }
+
+    .step-card.active .step-param-tag {
+      color: var(--cyan);
+    }
+
+    /* AI Assist Card */
+    .ai-assist-box {
+      background: var(--bg-input);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-sm);
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .ai-advisory-note {
+      font-style: italic;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .ai-advisory-note span.icon {
+      color: var(--amber);
+      font-style: normal;
+    }
+
+    .ai-chat-area {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 1rem;
+      display: flex;
+      gap: 0.85rem;
+    }
+
+    .ai-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, var(--purple), var(--cyan));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+
+    .ai-message-content {
+      flex: 1;
+    }
+
+    .ai-message-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.4rem;
+    }
+
+    .ai-message-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--purple);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .ai-confidence-badge {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--green);
+      background: var(--green-dim);
+      padding: 0.1rem 0.4rem;
+      border-radius: 3px;
+    }
+
+    .ai-message-body {
+      font-size: 0.86rem;
+      color: var(--text-primary);
+      line-height: 1.45;
+      font-family: var(--font-sans);
+    }
+
+    .ai-actions-bar {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.6rem;
+    }
+
+    /* Decision inputs & Action table styling */
+    .gauge-group {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .gauge-item {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .gauge-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.78rem;
+    }
+
+    .gauge-item-name {
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .gauge-item-val {
+      font-family: var(--font-mono);
+      font-weight: 700;
+    }
+
+    .action-history-wrapper {
+      overflow-x: auto;
+    }
+
+    /* Toast Notification for manual triggers */
+    #status-toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--cyan);
+      color: var(--text-primary);
+      padding: 0.75rem 1.25rem;
+      border-radius: var(--radius-sm);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5), 0 0 12px var(--cyan-glow);
+      font-size: 0.8rem;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      z-index: 1000;
+      opacity: 0;
+      transform: translateY(20px);
+      pointer-events: none;
+      transition: all 0.3s var(--ease);
+    }
+
+    #status-toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (max-width: 900px) {
+      .stepper-track {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .loop-track-forward {
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      .loop-forward-arrow {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Mobile Menu Toggle Button -->
+  <button class="mobile-toggle" aria-label="Toggle navigation">☰</button>
+
+  <div class="dashboard">
+
+    <!-- ===== SIDEBAR ===== -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-brand">
+          <div class="sidebar-logo">AP</div>
+          <div>
+            <div class="sidebar-title">AquaPulse SDT</div>
+            <div class="sidebar-subtitle">AUV Sonar Payload</div>
+          </div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">Navigation</div>
+        <a href="index.html" class="nav-item">
+          <span class="nav-icon">📊</span>
+          <span>Overview</span>
+        </a>
+        <a href="live-sonar.html" class="nav-item">
+          <span class="nav-icon">📡</span>
+          <span>Live Sonar</span>
+        </a>
+        <a href="adaptive-control.html" class="nav-item active">
+          <span class="nav-icon">🎯</span>
+          <span>Adaptive Control</span>
+        </a>
+        <a href="waveforms.html" class="nav-item">
+          <span class="nav-icon">〰️</span>
+          <span>Waveforms</span>
+        </a>
+        <a href="power.html" class="nav-item">
+          <span class="nav-icon">⚡</span>
+          <span>Power Optimization</span>
+        </a>
+        <a href="experiments.html" class="nav-item">
+          <span class="nav-icon">🧪</span>
+          <span>Experiments</span>
+        </a>
+        <a href="hardware.html" class="nav-item">
+          <span class="nav-icon">🔧</span>
+          <span>Hardware</span>
+        </a>
+        <a href="logs.html" class="nav-item">
+          <span class="nav-icon">📋</span>
+          <span>System Logs</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="sidebar-status">
+          <span class="status-dot"></span>
+          <span>Control Loop Active (700ms)</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ===== MAIN CONTENT ===== -->
+    <main class="main-content">
+
+      <!-- Page Header -->
+      <header class="page-header">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem;">
+          <div>
+            <h1>Adaptive Control</h1>
+            <p>Closed-loop sensing optimization</p>
+          </div>
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <div class="badge badge-green">
+              <span class="status-dot" style="width: 6px; height: 6px;"></span>
+              CLOSED-LOOP ACTIVE
+            </div>
+            <button class="btn btn-primary" onclick="triggerManualAdaptation()">
+              ⚡ Run Adaptive Step
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Page Body -->
+      <div class="page-body">
+        <div class="dashboard-grid">
+
+          <!-- 1. CONTROL LOOP CARD -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <span>🔄</span> Control Loop Architecture
+              </div>
+              <div class="card-subtitle">
+                <span class="badge badge-cyan mono">PERIOD: 700 ms</span>
+              </div>
+            </div>
+            <div class="card-body loop-card-body">
+              <div class="feedback-note-banner">
+                <div class="feedback-note-text">
+                  Feedback path: receive metrics from stage 02 re-enter the decision engine every <strong>700 ms</strong>.
+                </div>
+                <div class="badge badge-purple mono">
+                  DETERMINISTIC LATENCY &lt; 12 ms
+                </div>
+              </div>
+
+              <!-- Horizontal Loop Diagram with Circular Feedback Style -->
+              <div class="loop-diagram-container">
+                <!-- Forward Pipeline Stages -->
+                <div class="loop-track-forward">
+                  <!-- Stage 1: Sense -->
+                  <div class="loop-node active" id="node-sense">
+                    <span class="loop-node-stage">Stage 01</span>
+                    <div class="loop-node-icon">🌊</div>
+                    <span class="loop-node-name">Sense</span>
+                    <span class="loop-node-detail">Hydrophone &amp; CTD sensors</span>
+                  </div>
+
+                  <div class="loop-forward-arrow">→</div>
+
+                  <!-- Stage 2: Analyze -->
+                  <div class="loop-node active" id="node-analyze">
+                    <span class="loop-node-stage">Stage 02</span>
+                    <div class="loop-node-icon">📈</div>
+                    <span class="loop-node-name">Analyze</span>
+                    <span class="loop-node-detail">FFT noise &amp; SNR metric</span>
+                  </div>
+
+                  <div class="loop-forward-arrow">→</div>
+
+                  <!-- Stage 3: Decide -->
+                  <div class="loop-node active" id="node-decide">
+                    <span class="loop-node-stage">Stage 03</span>
+                    <div class="loop-node-icon">🧠</div>
+                    <span class="loop-node-name">Decide</span>
+                    <span class="loop-node-detail">Policy lookup engine</span>
+                  </div>
+
+                  <div class="loop-forward-arrow">→</div>
+
+                  <!-- Stage 4: Transmit -->
+                  <div class="loop-node active" id="node-transmit">
+                    <span class="loop-node-stage">Stage 04</span>
+                    <div class="loop-node-icon">📡</div>
+                    <span class="loop-node-name">Transmit</span>
+                    <span class="loop-node-detail">DDS &amp; DAC synthesizer</span>
+                  </div>
+
+                  <div class="loop-forward-arrow">→</div>
+
+                  <!-- Stage 5: Receive -->
+                  <div class="loop-node active" id="node-receive">
+                    <span class="loop-node-stage">Stage 05</span>
+                    <div class="loop-node-icon">🎯</div>
+                    <span class="loop-node-name">Receive</span>
+                    <span class="loop-node-detail">Match filter &amp; echo capture</span>
+                  </div>
+                </div>
+
+                <!-- Circular Feedback Return Path -->
+                <div class="loop-return-path">
+                  <div class="return-arrow-left">⟵⟵</div>
+                  <div class="loop-return-tag">
+                    <span>🔁</span> FEEDBACK LOOP: Receive metrics re-enter Decision Engine (700 ms cycle)
+                  </div>
+                  <div class="return-arrow-left">⟵⟵</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. LATEST ADAPTIVE ACTION & RESOLUTION ON DEMAND (2-COLUMN GRID) -->
+          <div class="grid-2">
+
+            <!-- Latest Adaptive Action Card -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">
+                  <span>⚡</span> Latest Adaptive Action
+                </div>
+                <div class="card-subtitle mono text-dim">
+                  T-00:00:12 AGO
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="action-grid-2col">
+                  <!-- Row 1: Trigger -->
+                  <div class="action-row">
+                    <div class="action-label-col">
+                      <span class="action-label-code">TRIGGER</span>
+                      <span class="action-label-title">Acoustic Status</span>
+                    </div>
+                    <div class="action-value-col">
+                      <span class="badge badge-red">High acoustic noise detected</span>
+                    </div>
+                  </div>
+
+                  <!-- Row 2: Frequency -->
+                  <div class="action-row">
+                    <div class="action-label-col">
+                      <span class="action-label-code">FREQUENCY</span>
+                      <span class="action-label-title">Center Band</span>
+                    </div>
+                    <div class="action-value-col">
+                      <span class="badge badge-cyan mono">30 → 35 kHz</span>
+                      <span class="action-value-detail text-cyan">(+5 kHz shift)</span>
+                    </div>
+                  </div>
+
+                  <!-- Row 3: SNR -->
+                  <div class="action-row">
+                    <div class="action-label-col">
+                      <span class="action-label-code">SNR</span>
+                      <span class="action-label-title">Signal Quality</span>
+                    </div>
+                    <div class="action-value-col">
+                      <span class="badge badge-green mono">19.2 → 25.4 dB</span>
+                      <span class="action-value-detail text-green">(+6.2 dB gain)</span>
+                    </div>
+                  </div>
+
+                  <!-- Row 4: Power -->
+                  <div class="action-row">
+                    <div class="action-label-col">
+                      <span class="action-label-code">POWER</span>
+                      <span class="action-label-title">Tx Duty &amp; Level</span>
+                    </div>
+                    <div class="action-value-col">
+                      <span class="badge badge-amber mono">45 → 34%</span>
+                      <span class="action-value-detail text-amber">(-11% saved)</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Resolution on Demand Card -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">
+                  <span>🎚️</span> Resolution on Demand
+                </div>
+                <div class="card-subtitle">
+                  <span class="badge badge-cyan">DYNAMIC MODE</span>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="stepper-wrapper">
+                  <div class="stepper-header">
+                    <span class="text-sm text-secondary">Operation Modes</span>
+                    <span class="mono text-xs text-cyan" id="current-mode-label">CURRENT: 1. SEARCH</span>
+                  </div>
+
+                  <!-- 4 Horizontal Steps -->
+                  <div class="stepper-track">
+                    <!-- Step 1: SEARCH (Active) -->
+                    <div class="step-card active" id="step-1" onclick="selectMode(1, 'SEARCH', 'Wide-area volumetric sweep at 100 kHz. Maximum detection range.')">
+                      <div class="step-top">
+                        <span class="step-badge-num">01</span>
+                        <span class="badge badge-cyan text-xs">ACTIVE</span>
+                      </div>
+                      <div class="step-name">SEARCH</div>
+                      <div class="step-desc">Wide-angle search</div>
+                      <div class="step-param-tag">100 kHz · 10 kHz BW</div>
+                    </div>
+
+                    <!-- Step 2: DETECT -->
+                    <div class="step-card" id="step-2" onclick="selectMode(2, 'DETECT', 'Target acquisition sweep at 200 kHz. Balanced range and resolution.')">
+                      <div class="step-top">
+                        <span class="step-badge-num">02</span>
+                      </div>
+                      <div class="step-name">DETECT</div>
+                      <div class="step-desc">Target acquisition</div>
+                      <div class="step-param-tag">200 kHz · 25 kHz BW</div>
+                    </div>
+
+                    <!-- Step 3: FOCUS -->
+                    <div class="step-card" id="step-3" onclick="selectMode(3, 'FOCUS', 'Concentrated geometric sweep at 350 kHz. Enhanced spatial resolution.')">
+                      <div class="step-top">
+                        <span class="step-badge-num">03</span>
+                      </div>
+                      <div class="step-name">FOCUS</div>
+                      <div class="step-desc">Aperture focus</div>
+                      <div class="step-param-tag">350 kHz · 50 kHz BW</div>
+                    </div>
+
+                    <!-- Step 4: INSPECT -->
+                    <div class="step-card" id="step-4" onclick="selectMode(4, 'INSPECT', 'High-definition phase-coded pulse at 500 kHz. Sub-centimeter imaging.')">
+                      <div class="step-top">
+                        <span class="step-badge-num">04</span>
+                      </div>
+                      <div class="step-name">INSPECT</div>
+                      <div class="step-desc">Detail mapping</div>
+                      <div class="step-param-tag">500 kHz · Barker-13</div>
+                    </div>
+                  </div>
+
+                  <div id="mode-details-box" style="margin-top: 1rem; padding: 0.65rem 0.9rem; background: var(--bg-input); border-radius: var(--radius-sm); border: 1px solid var(--border-light); font-size: 0.75rem; color: var(--text-secondary);">
+                    💡 <strong class="text-primary">Mode Profile:</strong> Wide-area volumetric sweep at 100 kHz. Maximum detection range in open water columns.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- 3. AI ASSIST — SIMULATION CARD -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <span>🤖</span> AI Assist — Simulation
+              </div>
+              <div class="card-subtitle">
+                <span class="badge badge-purple mono">MODEL: LFM-COGNITIVE v2.4</span>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="ai-assist-box">
+                <!-- Italic advisory note -->
+                <div class="ai-advisory-note">
+                  <span class="icon">⚠️</span>
+                  <em>Advisory only. The deterministic controller retains authority over transmit parameters.</em>
+                </div>
+
+                <!-- Chatbox / Suggestion area -->
+                <div class="ai-chat-area">
+                  <div class="ai-avatar">🧠</div>
+                  <div class="ai-message-content">
+                    <div class="ai-message-header">
+                      <span class="ai-message-title">Cognitive Advisor Output</span>
+                      <span class="ai-confidence-badge">94.2% CONFIDENCE</span>
+                    </div>
+                    <div class="ai-message-body" id="ai-suggestion-text">
+                      Recommend reducing bandwidth by 2 kHz to improve SNR in current turbidity conditions.
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Action controls -->
+                <div class="ai-actions-bar">
+                  <span class="text-xs text-muted" style="margin-right: auto;">
+                    Projected Outcome: <strong class="text-green">+1.8 dB SNR</strong> | <strong class="text-amber">-4.2% Power</strong>
+                  </span>
+                  <button class="btn" onclick="simulateNewAiSuggestion()">
+                    🔄 Re-Simulate
+                  </button>
+                  <button class="btn btn-primary" onclick="acceptAiRecommendation()">
+                    ✓ Accept Recommendation
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. TWO-COLUMN ROW: DECISION INPUTS & ACTION HISTORY -->
+          <div class="grid-2">
+
+            <!-- Decision Inputs Card -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">
+                  <span>📊</span> Decision Inputs
+                </div>
+                <div class="card-subtitle">
+                  <span class="badge badge-cyan">TELEMETRY</span>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="gauge-group">
+
+                  <!-- Turbidity: 62% (amber) -->
+                  <div class="gauge-item">
+                    <div class="gauge-item-header">
+                      <span class="gauge-item-name">Turbidity</span>
+                      <span class="gauge-item-val text-amber" id="val-turbidity">62%</span>
+                    </div>
+                    <div class="gauge-bar">
+                      <div class="gauge-fill progress-fill amber" id="bar-turbidity" style="width: 62%;"></div>
+                    </div>
+                  </div>
+
+                  <!-- Noise level: 38% (cyan) -->
+                  <div class="gauge-item">
+                    <div class="gauge-item-header">
+                      <span class="gauge-item-name">Noise level</span>
+                      <span class="gauge-item-val text-cyan" id="val-noise">38%</span>
+                    </div>
+                    <div class="gauge-bar">
+                      <div class="gauge-fill progress-fill cyan" id="bar-noise" style="width: 38%;"></div>
+                    </div>
+                  </div>
+
+                  <!-- Depth factor: 85% (purple) -->
+                  <div class="gauge-item">
+                    <div class="gauge-item-header">
+                      <span class="gauge-item-name">Depth factor</span>
+                      <span class="gauge-item-val text-purple" id="val-depth">85%</span>
+                    </div>
+                    <div class="gauge-bar">
+                      <div class="gauge-fill progress-fill purple" id="bar-depth" style="width: 85%;"></div>
+                    </div>
+                  </div>
+
+                  <!-- Temperature weight: 45% (green) -->
+                  <div class="gauge-item">
+                    <div class="gauge-item-header">
+                      <span class="gauge-item-name">Temperature weight</span>
+                      <span class="gauge-item-val text-green" id="val-temp">45%</span>
+                    </div>
+                    <div class="gauge-bar">
+                      <div class="gauge-fill progress-fill green" id="bar-temp" style="width: 45%;"></div>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+
+            <!-- Action History Card -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">
+                  <span>📜</span> Action History
+                </div>
+                <div class="card-subtitle">
+                  <span class="mono text-xs text-dim">LAST 5 EVENTS</span>
+                </div>
+              </div>
+              <div class="card-body" style="padding: 0;">
+                <div class="action-history-wrapper">
+                  <table class="data-table" id="action-history-table">
+                    <thead>
+                      <tr>
+                        <th>Time</th>
+                        <th>Action</th>
+                        <th>Result</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td class="mono">10:32:03</td>
+                        <td class="mono text-cyan">FRQ 30→35 kHz</td>
+                        <td class="mono text-green fw-700">25.4 dB</td>
+                      </tr>
+                      <tr>
+                        <td class="mono">10:31:17</td>
+                        <td class="mono text-amber">PWR 50→45%</td>
+                        <td class="mono text-green fw-700">+3.2 dB</td>
+                      </tr>
+                      <tr>
+                        <td class="mono">10:30:45</td>
+                        <td class="mono text-purple">BW 12→10 kHz</td>
+                        <td class="mono text-amber fw-700">-0.8 dB</td>
+                      </tr>
+                      <tr>
+                        <td class="mono">10:29:58</td>
+                        <td class="mono text-cyan">FRQ 28→30 kHz</td>
+                        <td class="mono text-green fw-700">22.1 dB</td>
+                      </tr>
+                      <tr>
+                        <td class="mono">10:28:12</td>
+                        <td class="mono text-emerald">WIN Hann→Hamming</td>
+                        <td class="mono text-cyan fw-700">+1.1 dB</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+    </main>
+
+  </div>
+
+  <!-- Status Toast Notification -->
+  <div id="status-toast">
+    <span id="toast-icon">⚡</span>
+    <span id="toast-msg">Adaptive action executed successfully.</span>
+  </div>
+
+  <!-- Shared & Page-Specific Scripts -->
+  <script src="js/main.js"></script>
+  <script>
+    // ===== Page Interactivity =====
+
+    function selectMode(stepNum, modeName, desc) {
+      // Update step cards
+      document.querySelectorAll('.step-card').forEach((card, idx) => {
+        if (idx + 1 === stepNum) {
+          card.classList.add('active');
+          if (!card.querySelector('.badge-cyan')) {
+            const badge = document.createElement('span');
+            badge.className = 'badge badge-cyan text-xs';
+            badge.textContent = 'ACTIVE';
+            card.querySelector('.step-top').appendChild(badge);
+          }
+        } else {
+          card.classList.remove('active');
+          const existingBadge = card.querySelector('.badge-cyan');
+          if (existingBadge) existingBadge.remove();
+        }
+      });
+
+      // Update header & info box
+      document.getElementById('current-mode-label').textContent = `CURRENT: ${stepNum}. ${modeName}`;
+      document.getElementById('mode-details-box').innerHTML = `💡 <strong class="text-primary">Mode Profile (${modeName}):</strong> ${desc}`;
+
+      showToast(`Switched resolution mode to ${modeName}`, '🎯');
+    }
+
+    function acceptAiRecommendation() {
+      const table = document.getElementById('action-history-table').querySelector('tbody');
+      const now = new Date();
+      const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+      
+      const newRow = document.createElement('tr');
+      newRow.innerHTML = `
+        <td class="mono">${timeStr}</td>
+        <td class="mono text-cyan">BW 10→8 kHz</td>
+        <td class="mono text-green fw-700">+1.8 dB</td>
+      `;
+      table.insertBefore(newRow, table.firstChild);
+      if (table.rows.length > 5) {
+        table.deleteRow(5);
+      }
+
+      // Slightly lower turbidity impact
+      document.getElementById('val-turbidity').textContent = '58%';
+      document.getElementById('bar-turbidity').style.width = '58%';
+      
+      showToast('AI recommendation applied: Bandwidth reduced by 2 kHz', '✓');
+    }
+
+    const aiSuggestionsPool = [
+      "Recommend reducing bandwidth by 2 kHz to improve SNR in current turbidity conditions.",
+      "Acoustic thermocline detected at 14m. Recommend shifting center frequency to 38 kHz.",
+      "Reverberation decay fast. Recommend increasing pulse repetition rate by 15%.",
+      "Multipath echoes identified. Recommend switching window to Blackman-Harris."
+    ];
+
+    let aiIndex = 0;
+    function simulateNewAiSuggestion() {
+      aiIndex = (aiIndex + 1) % aiSuggestionsPool.length;
+      document.getElementById('ai-suggestion-text').textContent = aiSuggestionsPool[aiIndex];
+      showToast('AI Advisor simulation re-computed', '🤖');
+    }
+
+    function triggerManualAdaptation() {
+      const table = document.getElementById('action-history-table').querySelector('tbody');
+      const now = new Date();
+      const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+      
+      const actions = [
+        { act: "FRQ 35→38 kHz", res: "26.1 dB", clsAct: "text-cyan", clsRes: "text-green" },
+        { act: "PWR 34→30%", res: "+1.9 dB", clsAct: "text-amber", clsRes: "text-green" },
+        { act: "CHIRP LFM→Geom", res: "+2.4 dB", clsAct: "text-purple", clsRes: "text-green" }
+      ];
+      const selected = actions[Math.floor(Math.random() * actions.length)];
+
+      const newRow = document.createElement('tr');
+      newRow.innerHTML = `
+        <td class="mono">${timeStr}</td>
+        <td class="mono ${selected.clsAct}">${selected.act}</td>
+        <td class="mono ${selected.clsRes} fw-700">${selected.res}</td>
+      `;
+      table.insertBefore(newRow, table.firstChild);
+      if (table.rows.length > 5) {
+        table.deleteRow(5);
+      }
+
+      // Highlight loop stages briefly
+      const nodes = ['node-sense', 'node-analyze', 'node-decide', 'node-transmit', 'node-receive'];
+      nodes.forEach((id, i) => {
+        setTimeout(() => {
+          const el = document.getElementById(id);
+          if (el) {
+            el.style.transform = 'scale(1.08)';
+            setTimeout(() => el.style.transform = 'scale(1)', 300);
+          }
+        }, i * 140);
+      });
+
+      showToast(`Manual adaptive step completed: ${selected.act}`, '⚡');
+    }
+
+    function showToast(msg, icon = '⚡') {
+      const toast = document.getElementById('status-toast');
+      document.getElementById('toast-msg').textContent = msg;
+      document.getElementById('toast-icon').textContent = icon;
+      toast.classList.add('show');
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+  </script>
+</body>
+</html>

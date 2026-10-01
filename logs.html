@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>System Logs — TARANG TRG-001</title>
+  <meta name="description" content="Embedded event stream and UART console mirror for the TARANG TRG-001 Adaptive Sonar Payload.">
+  
+  <!-- Google Fonts: Inter + JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+  
+  <!-- Shared CSS -->
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>">
+
+  <style>
+    /* Page-specific terminal and log styling */
+    .terminal-container {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .terminal-titlebar {
+      background: #0d0d11;
+      border-bottom: 1px solid var(--border-light);
+      padding: 0.65rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      user-select: none;
+    }
+
+    .terminal-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .terminal-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .dot-close { background: #f87171; opacity: 0.85; }
+    .dot-min { background: #fbbf24; opacity: 0.85; }
+    .dot-max { background: #4ade80; opacity: 0.85; }
+
+    .terminal-title {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .terminal-info {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .terminal-toolbar {
+      padding: 0.85rem 1.25rem;
+      background: rgba(12, 12, 14, 0.75);
+      border-bottom: 1px solid var(--border-light);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    .toolbar-left {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .toolbar-right {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+    }
+
+    .search-box {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .search-box input {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.35rem 0.75rem 0.35rem 1.9rem;
+      font-size: 0.75rem;
+      color: var(--text-primary);
+      outline: none;
+      width: 190px;
+      transition: all var(--duration) var(--ease);
+      font-family: var(--font-mono);
+    }
+
+    .search-box input:focus {
+      border-color: var(--cyan);
+      box-shadow: 0 0 8px var(--cyan-glow);
+      width: 230px;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 0.6rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+
+    .action-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.35rem 0.65rem;
+      font-size: 0.72rem;
+      font-weight: 500;
+      border-radius: var(--radius-sm);
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      transition: all var(--duration) var(--ease);
+      cursor: pointer;
+    }
+
+    .action-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+      border-color: var(--border-accent);
+    }
+
+    .action-btn.active {
+      background: var(--cyan-dim);
+      color: var(--cyan);
+      border-color: var(--border-accent);
+    }
+
+    /* Log Stream Window */
+    .log-stream-window {
+      max-height: 600px;
+      min-height: 480px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 0.5rem 0;
+      background: #09090d;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      line-height: 1.55;
+      scroll-behavior: smooth;
+    }
+
+    .log-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .log-header-row {
+      position: sticky;
+      top: 0;
+      background: #0d0d12;
+      z-index: 10;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .log-header-cell {
+      padding: 0.4rem 0.85rem;
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-dim);
+      text-align: left;
+      user-select: none;
+    }
+
+    .log-row {
+      display: table-row;
+      transition: background var(--duration) var(--ease);
+      border-bottom: 1px solid rgba(39, 39, 42, 0.25);
+    }
+
+    .log-row:hover {
+      background: rgba(255, 255, 255, 0.035);
+    }
+
+    .log-row.highlight-new {
+      animation: logFlash 1.5s ease-out;
+    }
+
+    @keyframes logFlash {
+      0% { background: rgba(56, 189, 248, 0.18); }
+      100% { background: transparent; }
+    }
+
+    .log-cell {
+      padding: 0.42rem 0.85rem;
+      vertical-align: middle;
+    }
+
+    .col-idx {
+      width: 48px;
+      color: var(--text-dim);
+      font-size: 0.7rem;
+      text-align: right;
+      user-select: none;
+    }
+
+    .col-time {
+      width: 110px;
+      color: #8b8ba0;
+      font-size: 0.75rem;
+      white-space: nowrap;
+    }
+
+    .col-module {
+      width: 85px;
+      white-space: nowrap;
+    }
+
+    .col-msg {
+      color: #d4d4d8;
+      word-break: break-word;
+    }
+
+    .col-msg .val-num {
+      color: #67e8f9;
+      font-weight: 500;
+    }
+
+    .col-msg .val-param {
+      color: #cbd5e1;
+    }
+
+    .col-msg .val-success {
+      color: var(--green);
+      font-weight: 600;
+    }
+
+    .col-msg .val-alert {
+      color: var(--amber);
+      font-weight: 600;
+    }
+
+    .col-msg .val-sys {
+      color: #f472b6;
+    }
+
+    .module-badge-tag {
+      display: inline-block;
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 0.12rem 0.45rem;
+      border-radius: 3px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      min-width: 54px;
+      text-align: center;
+      line-height: 1.2;
+    }
+
+    .badge-mod-sensor {
+      background: rgba(74, 222, 128, 0.15);
+      color: #4ade80;
+      border: 1px solid rgba(74, 222, 128, 0.3);
+    }
+
+    .badge-mod-dsp {
+      background: rgba(56, 189, 248, 0.15);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+
+    .badge-mod-ctrl {
+      background: rgba(167, 139, 250, 0.15);
+      color: #a78bfa;
+      border: 1px solid rgba(167, 139, 250, 0.3);
+    }
+
+    .badge-mod-pwr {
+      background: rgba(251, 191, 36, 0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(251, 191, 36, 0.3);
+    }
+
+    .badge-mod-sys {
+      background: rgba(248, 113, 113, 0.15);
+      color: #f87171;
+      border: 1px solid rgba(248, 113, 113, 0.3);
+    }
+
+    /* Terminal Footer Status Bar */
+    .terminal-statusbar {
+      padding: 0.45rem 1rem;
+      background: #0a0a0d;
+      border-top: 1px solid var(--border-light);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      color: var(--text-dim);
+    }
+
+    .statusbar-stats {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .statusbar-item {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .statusbar-item .val {
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+
+    /* Stats Quick Strip */
+    .log-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .log-stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+      transition: border-color var(--duration) var(--ease);
+    }
+
+    .log-stat-card:hover {
+      border-color: var(--border);
+    }
+
+    .log-stat-title {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .log-stat-val {
+      font-family: var(--font-mono);
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    /* Empty state */
+    .empty-logs-msg {
+      padding: 3rem 1rem;
+      text-align: center;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 1024px) {
+      .log-stats-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    @media (max-width: 768px) {
+      .log-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .terminal-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .toolbar-left, .toolbar-right {
+        justify-content: space-between;
+        width: 100%;
+      }
+      .search-box {
+        width: 100%;
+      }
+      .search-box input {
+        width: 100% !important;
+      }
+      .col-idx {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Mobile Hamburger Toggle -->
+  <button class="mobile-toggle" aria-label="Toggle Navigation Menu">☰</button>
+
+  <div class="dashboard">
+    <!-- ==================== SIDEBAR ==================== -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-brand">
+          <div class="sidebar-logo">TRG</div>
+          <div>
+            <div class="sidebar-title">Adaptive Sonar Payload</div>
+            <div class="sidebar-subtitle">TARANG · TRG-001</div>
+          </div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">Navigation</div>
+        <a href="index.html" class="nav-item">
+          <span class="nav-icon">📊</span>
+          <span>Overview</span>
+        </a>
+        <a href="live-sonar.html" class="nav-item">
+          <span class="nav-icon">📡</span>
+          <span>Live Sonar</span>
+        </a>
+        <a href="adaptive-control.html" class="nav-item">
+          <span class="nav-icon">🎯</span>
+          <span>Adaptive Control</span>
+        </a>
+        <a href="waveforms.html" class="nav-item">
+          <span class="nav-icon">〰️</span>
+          <span>Waveforms</span>
+        </a>
+        <a href="power.html" class="nav-item">
+          <span class="nav-icon">⚡</span>
+          <span>Power Optimization</span>
+        </a>
+        <a href="experiments.html" class="nav-item">
+          <span class="nav-icon">🧪</span>
+          <span>Experiments</span>
+        </a>
+        <a href="hardware.html" class="nav-item">
+          <span class="nav-icon">🔧</span>
+          <span>Hardware</span>
+        </a>
+        <a href="logs.html" class="nav-item active">
+          <span class="nav-icon">📋</span>
+          <span>System Logs</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="sidebar-status">
+          <span class="status-dot"></span>
+          <span>TRG-001 Online</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ==================== MAIN CONTENT ==================== -->
+    <main class="main-content">
+      <!-- Page Header -->
+      <header class="page-header">
+        <div class="flex items-center justify-between" style="flex-wrap: wrap; gap: 1rem;">
+          <div>
+            <h1>System Logs</h1>
+            <p>Embedded event stream — UART console mirror</p>
+          </div>
+          <div class="flex items-center gap-1">
+            <span class="badge badge-cyan"><span class="mono">UART1 · 921,600 baud</span></span>
+            <span class="badge badge-green" id="autoScrollHeaderBadge"><span class="status-dot"></span> Streaming</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Page Body -->
+      <div class="page-body">
+
+        <!-- Log Module Breakdown Stats Strip -->
+        <div class="log-stats-grid">
+          <div class="log-stat-card">
+            <div class="log-stat-title">
+              <span>Total Events</span>
+              <span class="mono text-dim">LOGS</span>
+            </div>
+            <div class="log-stat-val" id="statTotalCount">32</div>
+          </div>
+
+          <div class="log-stat-card">
+            <div class="log-stat-title">
+              <span class="text-green">SENSOR</span>
+              <span class="badge badge-green" style="padding: 0.1rem 0.4rem; font-size: 0.6rem;">ADC/I2C</span>
+            </div>
+            <div class="log-stat-val text-green" id="statSensorCount">6</div>
+          </div>
+
+          <div class="log-stat-card">
+            <div class="log-stat-title">
+              <span class="text-cyan">DSP</span>
+              <span class="badge badge-cyan" style="padding: 0.1rem 0.4rem; font-size: 0.6rem;">FFT/MF</span>
+            </div>
+            <div class="log-stat-val text-cyan" id="statDspCount">7</div>
+          </div>
+
+          <div class="log-stat-card">
+            <div class="log-stat-title">
+              <span class="text-purple">CTRL</span>
+              <span class="badge badge-purple" style="padding: 0.1rem 0.4rem; font-size: 0.6rem;">FSM</span>
+            </div>
+            <div class="log-stat-val text-purple" id="statCtrlCount">6</div>
+          </div>
+
+          <div class="log-stat-card">
+            <div class="log-stat-title">
+              <span class="text-amber">PWR</span>
+              <span class="badge badge-amber" style="padding: 0.1rem 0.4rem; font-size: 0.6rem;">PMU</span>
+            </div>
+            <div class="log-stat-val text-amber" id="statPwrCount">6</div>
+          </div>
+
+          <div class="log-stat-card">
+            <div class="log-stat-title">
+              <span class="text-red">SYS</span>
+              <span class="badge badge-red" style="padding: 0.1rem 0.4rem; font-size: 0.6rem;">DMA/TIM</span>
+            </div>
+            <div class="log-stat-val text-red" id="statSysCount">7</div>
+          </div>
+        </div>
+
+        <!-- ==================== EVENT LOG CARD (TERMINAL) ==================== -->
+        <div class="terminal-container">
+          
+          <!-- Terminal Titlebar -->
+          <div class="terminal-titlebar">
+            <div class="terminal-controls">
+              <span class="terminal-dot dot-close"></span>
+              <span class="terminal-dot dot-min"></span>
+              <span class="terminal-dot dot-max"></span>
+            </div>
+            <div class="terminal-title">
+              <span>🖥️</span>
+              <span>ttyUART1 &mdash; ST-LINK V3 / STM32H753ZI [tarang_telemetry.log]</span>
+            </div>
+            <div class="terminal-info">
+              <span>DMA2_Stream0</span>
+              <span>•</span>
+              <span>8-N-1</span>
+              <span>•</span>
+              <span class="text-green">LINK OK</span>
+            </div>
+          </div>
+
+          <!-- Filter Controls Row & Toolbar -->
+          <div class="terminal-toolbar">
+            
+            <div class="toolbar-left">
+              <!-- Filter Controls Toggle Group -->
+              <div class="toggle-group" id="moduleFilterGroup">
+                <button class="toggle-btn active" data-filter="ALL">ALL</button>
+                <button class="toggle-btn" data-filter="SENSOR">SENSOR</button>
+                <button class="toggle-btn" data-filter="DSP">DSP</button>
+                <button class="toggle-btn" data-filter="CTRL">CTRL</button>
+                <button class="toggle-btn" data-filter="PWR">PWR</button>
+                <button class="toggle-btn" data-filter="SYS">SYS</button>
+              </div>
+
+              <!-- Auto-Scroll Badge -->
+              <span class="badge badge-green" id="autoScrollBadge" style="cursor: pointer;" title="Click to toggle auto-scrolling">
+                <span class="status-dot"></span> Auto-scroll
+              </span>
+            </div>
+
+            <div class="toolbar-right">
+              <!-- Search box -->
+              <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="logSearchInput" placeholder="Filter logs..." autocomplete="off" spellcheck="false">
+              </div>
+
+              <!-- Stream Pause/Resume -->
+              <button class="action-btn" id="toggleStreamBtn" title="Pause or resume live incoming logs">
+                <span id="streamBtnIcon">⏸</span> <span id="streamBtnText">Pause</span>
+              </button>
+
+              <!-- Clear Log Screen -->
+              <button class="action-btn" id="clearLogBtn" title="Clear console buffer">
+                <span>🧹</span> Clear
+              </button>
+
+              <!-- Export Logs -->
+              <button class="action-btn" id="exportLogBtn" title="Export logs as plain text">
+                <span>📥</span> Export
+              </button>
+            </div>
+
+          </div>
+
+          <!-- Log Stream Table Container -->
+          <div class="log-stream-window" id="logStreamWindow">
+            <table class="log-table">
+              <thead class="log-header-row">
+                <tr>
+                  <th class="log-header-cell col-idx">#</th>
+                  <th class="log-header-cell col-time">Timestamp</th>
+                  <th class="log-header-cell col-module">Module</th>
+                  <th class="log-header-cell col-msg">Console Event / Telemetry Message</th>
+                </tr>
+              </thead>
+              <tbody id="logTableBody">
+                <!-- Log Entry 1 -->
+                <tr class="log-row" data-module="SENSOR">
+                  <td class="log-cell col-idx">01</td>
+                  <td class="log-cell col-time">10:32:03.142</td>
+                  <td class="log-cell col-module"><span class="module-badge-tag badge-mod-sensor">SENSOR</span></td>
+                  <td class="log-cell col-msg">Turbidity reading: <span class="val-num">12.4 NTU</span> (<span class="val-param">ADC ch.2 = 1847</span>)</td>
+                </tr>
+
+                <!-- Log Entry 2 -->
+                <tr class="log-row" data-module="DSP">
+                  <td class="log-cell col-idx">02</td>
+                  <td class="log-cell col-time">10:32:03.088</td>
+                  <td class="log-cell col-module"><span class="module-badge-tag badge-mod-dsp">DSP</span></td>
+                  <td class="log-cell col-msg">FFT bin peak at index <span class="val-num">142</span> (<span class="val-num">35.5 kHz</span>), mag = <span class="val-num">0.847</span></td>
+                </tr>
+
+                <!-- Log Entry 3 -->
+                <tr class="log-row" data-module="CTRL">
+                  <td class="log-cell col-idx">03</td>
+                  <td class="log-cell col-time">10:32:02.841</td>
+                  <td class="log-cell col-module"><span class="module-badge-tag badge-mod-ctrl">CTRL</span></td>
+                  <td class="log-cell col-msg">Adaptive action: frequency <span class="val-num">30 → 35 kHz</span> (<span class="val-alert">rule: turbidity &gt; 10</span>)</td>
+                </tr>
+
+                <!-- Log Entry 4 -->
+                <tr class="log-row" data-module="DSP">
+                  <td class="log-cell col-idx">04</td>
+                  <td class="log-cell col-time">10:32:02.700</td>
+                  <td class="log-cell col-module"><span class="module-badge-tag badge-mod-dsp">DSP</span></td>
+                  <td class="log-cell col-msg">Matched filter correlation peak: <span class="val-num">0.92</span> at sample <span class="val-num">1847</span></td>
+                </tr>
+
+                <!-- Log Entry 5 -->
+                <tr class="log-row" data-module="PWR">
+                  <td class="log-cell col-idx">05</td>
+                  <td class="log-cell col-time">10:32:02.500</td>
+                  <td class="log-cell col-module"><span class="module-badge-tag badge-mod-pwr">PWR</span></td>
+                  <td class="log-cell col-msg">Energy per ping: <span class="val-num">12.38 mJ</span> (<span class="val-param">duty = 0.80%</span>)</td>
+                </tr>
+
+                <!-- Log Entry 6 -->
+                <tr class="log-row" data-module="SENSOR">
+                  <td class="log-cell col-idx">06</td>
+                  <td class="log-cell col-time">10:32:02.200</td>
+                  <td class="log-cell col-module"><span class="module-badge-tag badge-mod-sensor">SENSOR</span></td>
+                  <td class="log-cell col-msg">Water temperature: <span class="val-num">22.1°C</span> (<span class="val-param">I2C sensor 0x48</span>)</td>
+                </tr>
+
+                <!-- Log Entry 7 -->
+                <tr class="log-row" data-module="SYS">
+                  <td class="log-cell col-idx">07</td>
+                  <td class="log-cell col-time">10:32:01.900</td>
+                  <td class="log-cell col-module"><span class="module-badge-tag badge-mod-sys">SYS</span></td>
+                  <td class="log-cell col-msg">DMA transfer complete: <span class="val-num">4096 samples</span> → <span class="val-sys">DAC buffer</span></td>
+                </tr>
+
+                <!-- Log Entry 8 -->
+                <tr class="log-row" data-module="CTRL">
+                  <td class="log-cell col-idx">08</td>
+                  <td class="log-cell col-time">10:32:01.650</td>
+                  <td class="log-cell col-module"><span class="module-badge-tag badge-mod-ctrl">CTRL</span></td>
+                  <td class="log-cell col-msg">SNR evaluation: <span class="val-num">25.4 dB</span> (target: 20.0 dB) — <span class="val-success">PASS</span></td>
+                </tr>
+
+                <!-- Log Entry 9 -->
+                <tr class="log-row" data-module="DSP">
+                  <td class="log-cell col-idx">09</td>
+                  <td class="log-cell col-time">10:32:01.400</td>
+                  <td class="log-cell col-module"><span class="module-badge-tag badge-mod-dsp">DSP</span></td>
+                  <td class="log-cell col-msg">Hamming window applied to <span class="val-param">4096-sample tx buffer</span></td>
+                </tr>
+
+                <!-- Log Entry 10 -->
+                <tr class="log-row" data-module="PWR">
+                  <td class="log-cell col-idx">10</td>
+                  <td class="log-cell col-time">10:32:01.100</td>
+                  <td class="log-cell col-module"><span class="module-badge-tag badge-mod-pwr">PWR</span></td>
+                  <td class="log-cell col-msg">Battery voltage: <span class="val-num">14.21V</span>, current: <span class="val-num">178 mA</span></td>
+                </tr>
+
+                <!-- Log Entry 11 -->
+                <tr class="log-row" data-module="SENSOR">
+                  <td class="log-cell col-idx">11</td>
+                  <td class="log-cell col-time">10:32:00.850</td>
+                  <td class="log-cell col-module"><span class="module-badge-tag badge-mod-sensor">SENSOR</span></td>
+                  <td class="log-cell col-msg">Depth sensor: <span class="val-num">42.3 m</span> (<span class="val-param">pressure: 5.14 bar</span>)</td>
+                </tr>
+
+                <!-- Log Entry 12 -->
+                <tr class="log-row" data-module="SYS">
+                  <td class="log-cell col-idx">12</td>
+                  <td class="log-cell col-time">10:32:00.600</td>
+                  <td class="log-cell col-module"><span class="module-badge-tag badge-mod-sys">SYS</span></td>
+                  <td class="log-cell col-msg">Timer TIM6 reload: <span class="val-param">ARR=479, PSC=0</span> (<span class="val-num">1 MSPS</span>)</td>
+                </tr>
+
+                <!-- Log Entry 13 -->
+                <tr class="log-row" data-module="CTRL">
+                  <td class="log-cell col-idx">13</td>
+                  <td class="log-cell col-time">10:32:00.350</td>
+                  <td class="log-cell col-module"><span class="module-badge-tag badge-mod-ctrl">CTRL</span></td>
+                  <td class="log-cell col-msg">Resolution mode: <span class="val-sys">SEARCH</span> (default scan)</td>
+                </tr>
+
+                <!-- Log Entry 14 -->
+                <tr class="log-row" data-module="DSP">
+                  <td class="log-cell col-idx">14</td>
+                  <td class="log-cell col-time">10:32:00.100</td>
+                  <td class="log-cell col-module"><span class="module-badge-tag badge-mod-dsp">DSP</span></td>
+                  <td class="log-cell col-msg">Waveform LUT regenerated: <span class="val-param">LFM chirp 30-40 kHz</span></td>
+                </tr>
+
+                <!-- Log Entry 15 -->
+                <tr class="log-row" data-module="PWR">
+                  <td class="log-cell col-idx">15</td>
+                  <td class="log-cell col-time">10:31:59.850</td>
+                  <td class="log-cell col-module"><span class="module-badge-tag badge-mod-pwr">PWR</span></td>
+                  <td class="log-cell col-msg">Sleep mode exit: <span class="val-sys">STOP2 → RUN</span> (wake: <span class="val-num">4.2 µs</span>)</td>
+                </tr>
+
+                <!-- Log Entry 16 -->
+                <tr class="log-row" data-module="SENSOR">
+                  <td class="log-cell col-idx">16</td>
+                  <td class="log-cell col-time">10:31:59.600</td>
+                  <td class="log-cell col-module"><span class="module-badge-tag badge-mod-sensor">SENSOR</span></td>
+                  <td class="log-cell col-msg">Salinity: <span class="val-num">34.8 PSU</span> (<span class="val-param">conductivity sensor</span>)</td>
+                </tr>
+
+                <!-- Log Entry 17 -->
+                <tr class="log-row" data-module="SYS">
+                  <td class="log-cell col-idx">17</td>
+                  <td class="log-cell col-time">10:31:59.350</td>
+                  <td class="log-cell col-module"><span class="module-badge-tag badge-mod-sys">SYS</span></td>
+                  <td class="log-cell col-msg">Ping <span class="val-sys">#12847</span> transmitted (<span class="val-num">PRF = 4.0 Hz</span>)</td>
+                </tr>
+
+                <!-- Log Entry 18 -->
+                <tr class="log-row" data-module="DSP">
+                  <td class="log-cell col-idx">18</td>
+                  <td class="log-cell col-time">10:31:59.100</td>
+                  <td class="log-cell col-module"><span class="module-badge-tag badge-mod-dsp">DSP</span></td>
+                  <td class="log-cell col-msg">Echo detected: <span class="val-num">range = 23.4 m</span>, strength = <span class="val-num">73%</span></td>
+                </tr>
+
+                <!-- Log Entry 19 -->
+                <tr class="log-row" data-module="CTRL">
+                  <td class="log-cell col-idx">19</td>
+                  <td class="log-cell col-time">10:31:58.850</td>
+                  <td class="log-cell col-module"><span class="module-badge-tag badge-mod-ctrl">CTRL</span></td>
+                  <td class="log-cell col-msg">No adaptation required (<span class="val-success">all params within bounds</span>)</td>
+                </tr>
+
+                <!-- Log Entry 20 -->
+                <tr class="log-row" data-module="PWR">
+                  <td class="log-cell col-idx">20</td>
+                  <td class="log-cell col-time">10:31:58.600</td>
+                  <td class="log-cell col-module"><span class="module-badge-tag badge-mod-pwr">PWR</span></td>
+                  <td class="log-cell col-msg">Amplifier output: <span class="val-num">220 mW</span> into <span class="val-param">50Ω load</span></td>
+                </tr>
+
+                <!-- Log Entry 21 -->
+                <tr class="log-row" data-module="SENSOR">
+                  <td class="log-cell col-idx">21</td>
+                  <td class="log-cell col-time">10:31:58.350</td>
+                  <td class="log-cell col-module"><span class="module-badge-tag badge-mod-sensor">SENSOR</span></td>
+                  <td class="log-cell col-msg">Sound speed calc: <span class="val-num">1523 m/s</span> (<span class="val-param">UNESCO eq.</span>)</td>
+                </tr>
+
+                <!-- Log Entry 22 -->
+                <tr class="log-row" data-module="SYS">
+                  <td class="log-cell col-idx">22</td>
+                  <td class="log-cell col-time">10:31:58.100</td>
+                  <td class="log-cell col-module"><span class="module-badge-tag badge-mod-sys">SYS</span></td>
+                  <td class="log-cell col-msg">Watchdog fed (<span class="val-param">IWDG, period = 1000 ms</span>)</td>
+                </tr>
+
+                <!-- Log Entry 23 -->
+                <tr class="log-row" data-module="DSP">
+                  <td class="log-cell col-idx">23</td>
+                  <td class="log-cell col-time">10:31:57.850</td>
+                  <td class="log-cell col-module"><span class="module-badge-tag badge-mod-dsp">DSP</span></td>
+                  <td class="log-cell col-msg">Sidelobe level: <span class="val-num">-42.3 dB</span> (<span class="val-param">Hamming window</span>)</td>
+                </tr>
+
+                <!-- Log Entry 24 -->
+                <tr class="log-row" data-module="CTRL">
+                  <td class="log-cell col-idx">24</td>
+                  <td class="log-cell col-time">10:31:57.600</td>
+                  <td class="log-cell col-module"><span class="module-badge-tag badge-mod-ctrl">CTRL</span></td>
+                  <td class="log-cell col-msg">Transmit parameters locked for ping <span class="val-sys">#12846</span></td>
+                </tr>
+
+                <!-- Log Entry 25 -->
+                <tr class="log-row" data-module="PWR">
+                  <td class="log-cell col-idx">25</td>
+                  <td class="log-cell col-time">10:31:57.350</td>
+                  <td class="log-cell col-module"><span class="module-badge-tag badge-mod-pwr">PWR</span></td>
+                  <td class="log-cell col-msg">MCU temperature: <span class="val-num">41°C</span> (<span class="val-param">internal sensor</span>)</td>
+                </tr>
+
+                <!-- Extended Log Entries (System Initialization & Diagnostics) -->
+                <!-- Log Entry 26 -->
+                <tr class="log-row" data-module="SYS">
+                  <td class="log-cell col-idx">26</td>
+                  <td class="log-cell col-time">10:31:57.010</td>
+                  <td class="log-cell col-module"><span class="module-badge-tag badge-mod-sys">SYS</span></td>
+                  <td class="log-cell col-msg">Ping <span class="val-sys">#12846</span> transmitted (<span class="val-num">PRF = 4.0 Hz</span>)</td>
+                </tr>
+
+                <!-- Log Entry 27 -->
+                <tr class="log-row" data-module="DSP">
+                  <td class="log-cell col-idx">27</td>
+                  <td class="log-cell col-time">10:31:56.780</td>
+                  <td class="log-cell col-module"><span class="module-badge-tag badge-mod-dsp">DSP</span></td>
+                  <td class="log-cell col-msg">ARM CMSIS-DSP CFFT-Radix4 executed in <span class="val-num">48.2 µs</span> (FPU double precision)</td>
+                </tr>
+
+                <!-- Log Entry 28 -->
+                <tr class="log-row" data-module="SENSOR">
+                  <td class="log-cell col-idx">28</td>
+                  <td class="log-cell col-time">10:31:56.450</td>
+                  <td class="log-cell col-module"><span class="module-badge-tag badge-mod-sensor">SENSOR</span></td>
+                  <td class="log-cell col-msg">Hydrophone AFE PGA gain calibrated to <span class="val-num">+24.0 dB</span></td>
+                </tr>
+
+                <!-- Log Entry 29 -->
+                <tr class="log-row" data-module="CTRL">
+                  <td class="log-cell col-idx">29</td>
+                  <td class="log-cell col-time">10:31:56.120</td>
+                  <td class="log-cell col-module"><span class="module-badge-tag badge-mod-ctrl">CTRL</span></td>
+                  <td class="log-cell col-msg">Adaptive rule table check: <span class="val-param">3 rules evaluated</span>, <span class="val-success">0 trigger conditions</span></td>
+                </tr>
+
+                <!-- Log Entry 30 -->
+                <tr class="log-row" data-module="PWR">
+                  <td class="log-cell col-idx">30</td>
+                  <td class="log-cell col-time">10:31:55.800</td>
+                  <td class="log-cell col-module"><span class="module-badge-tag badge-mod-pwr">PWR</span></td>
+                  <td class="log-cell col-msg">Buck converter efficiency: <span class="val-num">94.2%</span> (Vout = 3.30V, Iout = 142 mA)</td>
+                </tr>
+
+                <!-- Log Entry 31 -->
+                <tr class="log-row" data-module="SYS">
+                  <td class="log-cell col-idx">31</td>
+                  <td class="log-cell col-time">10:31:55.200</td>
+                  <td class="log-cell col-module"><span class="module-badge-tag badge-mod-sys">SYS</span></td>
+                  <td class="log-cell col-msg">FreeRTOS scheduler: <span class="val-num">7 tasks active</span>, heap free: <span class="val-num">184.2 KB</span></td>
+                </tr>
+
+                <!-- Log Entry 32 -->
+                <tr class="log-row" data-module="SYS">
+                  <td class="log-cell col-idx">32</td>
+                  <td class="log-cell col-time">10:31:55.000</td>
+                  <td class="log-cell col-module"><span class="module-badge-tag badge-mod-sys">SYS</span></td>
+                  <td class="log-cell col-msg">STM32H753ZI core initialized: <span class="val-num">480 MHz PLL lock</span> &mdash; <span class="val-success">READY</span></td>
+                </tr>
+              </tbody>
+            </table>
+            <div id="noMatchingLogs" class="empty-logs-msg" style="display: none;">
+              No log entries match the active filter or search query.
+            </div>
+          </div>
+
+          <!-- Terminal Status Bar -->
+          <div class="terminal-statusbar">
+            <div class="statusbar-stats">
+              <div class="statusbar-item">
+                <span>Displaying:</span>
+                <span class="val" id="visibleCount">32</span> of <span class="val" id="totalCount">32</span> events
+              </div>
+              <div class="statusbar-item">
+                <span>Filter:</span>
+                <span class="val text-cyan" id="currentFilterLabel">ALL</span>
+              </div>
+              <div class="statusbar-item">
+                <span>Ring Buffer:</span>
+                <span class="val">64.0 KB / 64.0 KB</span>
+              </div>
+              <div class="statusbar-item">
+                <span>Drop Rate:</span>
+                <span class="val text-green">0.00%</span>
+              </div>
+            </div>
+            <div class="statusbar-stats">
+              <div class="statusbar-item">
+                <span>Console Status:</span>
+                <span class="val text-green" id="streamStatusText">● LIVE STREAMING</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Shared JS -->
+  <script src="js/main.js"></script>
+
+  <!-- Page-Specific Interactive Script for System Logs -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      initLogsTerminal();
+    });
+
+    function initLogsTerminal() {
+      const filterButtons = document.querySelectorAll('#moduleFilterGroup .toggle-btn');
+      const tableBody = document.getElementById('logTableBody');
+      const searchInput = document.getElementById('logSearchInput');
+      const autoScrollBadge = document.getElementById('autoScrollBadge');
+      const autoScrollHeaderBadge = document.getElementById('autoScrollHeaderBadge');
+      const streamWindow = document.getElementById('logStreamWindow');
+      const toggleStreamBtn = document.getElementById('toggleStreamBtn');
+      const streamBtnIcon = document.getElementById('streamBtnIcon');
+      const streamBtnText = document.getElementById('streamBtnText');
+      const streamStatusText = document.getElementById('streamStatusText');
+      const clearLogBtn = document.getElementById('clearLogBtn');
+      const exportLogBtn = document.getElementById('exportLogBtn');
+      const visibleCountEl = document.getElementById('visibleCount');
+      const totalCountEl = document.getElementById('totalCount');
+      const currentFilterLabel = document.getElementById('currentFilterLabel');
+      const noMatchingLogs = document.getElementById('noMatchingLogs');
+
+      let activeFilter = 'ALL';
+      let autoScroll = true;
+      let streamActive = true;
+      let streamInterval = null;
+      let pingSequence = 12848;
+
+      // Realistic telemetry simulation pool
+      const mockEventTemplates = [
+        { module: 'SENSOR', msg: () => `Turbidity reading: <span class="val-num">${(11.5 + Math.random() * 2).toFixed(1)} NTU</span> (<span class="val-param">ADC ch.2 = ${Math.floor(1800 + Math.random() * 80)}</span>)` },
+        { module: 'DSP', msg: () => `Matched filter correlation peak: <span class="val-num">${(0.88 + Math.random() * 0.08).toFixed(2)}</span> at sample <span class="val-num">${Math.floor(1800 + Math.random() * 100)}</span>` },
+        { module: 'PWR', msg: () => `Energy per ping: <span class="val-num">${(12.2 + Math.random() * 0.4).toFixed(2)} mJ</span> (<span class="val-param">duty = 0.80%</span>)` },
+        { module: 'CTRL', msg: () => `SNR evaluation: <span class="val-num">${(24.8 + Math.random() * 1.5).toFixed(1)} dB</span> (target: 20.0 dB) — <span class="val-success">PASS</span>` },
+        { module: 'SYS', msg: () => `Ping <span class="val-sys">#${pingSequence++}</span> transmitted (<span class="val-num">PRF = 4.0 Hz</span>)` },
+        { module: 'DSP', msg: () => `FFT bin peak at index <span class="val-num">142</span> (<span class="val-num">35.5 kHz</span>), mag = <span class="val-num">${(0.82 + Math.random() * 0.08).toFixed(3)}</span>` },
+        { module: 'SENSOR', msg: () => `Water temperature: <span class="val-num">${(22.0 + Math.random() * 0.3).toFixed(1)}°C</span> (<span class="val-param">I2C sensor 0x48</span>)` },
+        { module: 'PWR', msg: () => `Battery voltage: <span class="val-num">${(14.18 + Math.random() * 0.06).toFixed(2)}V</span>, current: <span class="val-num">${Math.floor(174 + Math.random() * 8)} mA</span>` },
+        { module: 'SYS', msg: () => `DMA transfer complete: <span class="val-num">4096 samples</span> → <span class="val-sys">DAC buffer</span>` },
+        { module: 'CTRL', msg: () => `Transmit parameters locked for ping <span class="val-sys">#${pingSequence}</span>` },
+        { module: 'DSP', msg: () => `Echo detected: <span class="val-num">range = ${(22.8 + Math.random() * 1.2).toFixed(1)} m</span>, strength = <span class="val-num">${Math.floor(70 + Math.random() * 8)}%</span>` },
+        { module: 'SENSOR', msg: () => `Depth sensor: <span class="val-num">${(42.2 + Math.random() * 0.4).toFixed(1)} m</span> (<span class="val-param">pressure: 5.14 bar</span>)` }
+      ];
+
+      // 1. Module Filter Toggle
+      filterButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          filterButtons.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          activeFilter = btn.dataset.filter;
+          if (currentFilterLabel) currentFilterLabel.textContent = activeFilter;
+          applyFilters();
+        });
+      });
+
+      // 2. Search Box Filter
+      if (searchInput) {
+        searchInput.addEventListener('input', () => {
+          applyFilters();
+        });
+      }
+
+      // Apply Filters Function
+      function applyFilters() {
+        const rows = tableBody.querySelectorAll('.log-row');
+        const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+        let visible = 0;
+
+        rows.forEach(row => {
+          const mod = row.getAttribute('data-module');
+          const text = row.textContent.toLowerCase();
+
+          const matchesModule = (activeFilter === 'ALL' || mod === activeFilter);
+          const matchesQuery = !query || text.includes(query);
+
+          if (matchesModule && matchesQuery) {
+            row.style.display = '';
+            visible++;
+          } else {
+            row.style.display = 'none';
+          }
+        });
+
+        if (visibleCountEl) visibleCountEl.textContent = visible;
+        if (totalCountEl) totalCountEl.textContent = rows.length;
+        if (noMatchingLogs) {
+          noMatchingLogs.style.display = (visible === 0 && rows.length > 0) ? 'block' : 'none';
+        }
+
+        updateStatsBreakdown();
+
+        if (autoScroll) {
+          scrollToTop();
+        }
+      }
+
+      function updateStatsBreakdown() {
+        const rows = tableBody.querySelectorAll('.log-row');
+        let sensor = 0, dsp = 0, ctrl = 0, pwr = 0, sys = 0;
+
+        rows.forEach(r => {
+          const m = r.getAttribute('data-module');
+          if (m === 'SENSOR') sensor++;
+          else if (m === 'DSP') dsp++;
+          else if (m === 'CTRL') ctrl++;
+          else if (m === 'PWR') pwr++;
+          else if (m === 'SYS') sys++;
+        });
+
+        const setVal = (id, val) => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = val;
+        };
+
+        setVal('statTotalCount', rows.length);
+        setVal('statSensorCount', sensor);
+        setVal('statDspCount', dsp);
+        setVal('statCtrlCount', ctrl);
+        setVal('statPwrCount', pwr);
+        setVal('statSysCount', sys);
+      }
+
+      // 3. Auto Scroll Toggle
+      function toggleAutoScroll() {
+        autoScroll = !autoScroll;
+        if (autoScroll) {
+          autoScrollBadge.className = 'badge badge-green';
+          autoScrollBadge.innerHTML = '<span class="status-dot"></span> Auto-scroll';
+          if (autoScrollHeaderBadge) {
+            autoScrollHeaderBadge.className = 'badge badge-green';
+            autoScrollHeaderBadge.innerHTML = '<span class="status-dot"></span> Streaming';
+          }
+          scrollToTop();
+        } else {
+          autoScrollBadge.className = 'badge badge-amber';
+          autoScrollBadge.innerHTML = 'Auto-scroll OFF';
+          if (autoScrollHeaderBadge) {
+            autoScrollHeaderBadge.className = 'badge badge-amber';
+            autoScrollHeaderBadge.innerHTML = 'Stream Paused';
+          }
+        }
+      }
+
+      if (autoScrollBadge) autoScrollBadge.addEventListener('click', toggleAutoScroll);
+      if (autoScrollHeaderBadge) autoScrollHeaderBadge.addEventListener('click', toggleAutoScroll);
+
+      function scrollToTop() {
+        if (streamWindow) {
+          streamWindow.scrollTop = 0;
+        }
+      }
+
+      // 4. Live Stream Simulation (Prepend new events at top like real-time console)
+      function appendLiveLog() {
+        if (!streamActive) return;
+
+        const template = mockEventTemplates[Math.floor(Math.random() * mockEventTemplates.length)];
+        const now = new Date();
+        const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}.${String(now.getMilliseconds()).padStart(3, '0')}`;
+
+        const badgeClassMap = {
+          'SENSOR': 'badge-mod-sensor',
+          'DSP': 'badge-mod-dsp',
+          'CTRL': 'badge-mod-ctrl',
+          'PWR': 'badge-mod-pwr',
+          'SYS': 'badge-mod-sys'
+        };
+
+        const newRow = document.createElement('tr');
+        newRow.className = 'log-row highlight-new';
+        newRow.setAttribute('data-module', template.module);
+
+        newRow.innerHTML = `
+          <td class="log-cell col-idx">●</td>
+          <td class="log-cell col-time">${timeStr}</td>
+          <td class="log-cell col-module"><span class="module-badge-tag ${badgeClassMap[template.module]}">${template.module}</span></td>
+          <td class="log-cell col-msg">${template.msg()}</td>
+        `;
+
+        if (tableBody.firstChild) {
+          tableBody.insertBefore(newRow, tableBody.firstChild);
+        } else {
+          tableBody.appendChild(newRow);
+        }
+
+        // Renumber indices
+        renumberIndices();
+        applyFilters();
+
+        // Limit maximum buffer to 120 lines in DOM to keep silky smooth
+        const allRows = tableBody.querySelectorAll('.log-row');
+        if (allRows.length > 120) {
+          for (let i = 120; i < allRows.length; i++) {
+            allRows[i].remove();
+          }
+        }
+      }
+
+      function renumberIndices() {
+        const rows = tableBody.querySelectorAll('.log-row');
+        rows.forEach((r, idx) => {
+          const idxCell = r.querySelector('.col-idx');
+          if (idxCell) {
+            idxCell.textContent = String(idx + 1).padStart(2, '0');
+          }
+        });
+      }
+
+      // Start stream timer
+      function startStream() {
+        if (streamInterval) clearInterval(streamInterval);
+        streamInterval = setInterval(appendLiveLog, 3200);
+      }
+
+      startStream();
+
+      // 5. Pause / Resume stream button
+      if (toggleStreamBtn) {
+        toggleStreamBtn.addEventListener('click', () => {
+          streamActive = !streamActive;
+          if (streamActive) {
+            streamBtnIcon.textContent = '⏸';
+            streamBtnText.textContent = 'Pause';
+            toggleStreamBtn.classList.remove('active');
+            if (streamStatusText) {
+              streamStatusText.textContent = '● LIVE STREAMING';
+              streamStatusText.className = 'val text-green';
+            }
+          } else {
+            streamBtnIcon.textContent = '▶';
+            streamBtnText.textContent = 'Resume';
+            toggleStreamBtn.classList.add('active');
+            if (streamStatusText) {
+              streamStatusText.textContent = '⏸ PAUSED';
+              streamStatusText.className = 'val text-amber';
+            }
+          }
+        });
+      }
+
+      // 6. Clear Log Screen
+      if (clearLogBtn) {
+        clearLogBtn.addEventListener('click', () => {
+          if (confirm('Clear the current terminal display buffer?')) {
+            tableBody.innerHTML = '';
+            applyFilters();
+          }
+        });
+      }
+
+      // 7. Export Log File (.log / .txt)
+      if (exportLogBtn) {
+        exportLogBtn.addEventListener('click', () => {
+          const rows = tableBody.querySelectorAll('.log-row');
+          if (rows.length === 0) {
+            alert('Console buffer is empty.');
+            return;
+          }
+
+          let logText = `=======================================================\n`;
+          logText += `TARANG TRG-001 ADAPTIVE SONAR PAYLOAD — UART LOG EXPORT\n`;
+          logText += `Export Timestamp: ${new Date().toISOString()}\n`;
+          logText += `Port: USART1 / DMA2 @ 921,600 baud, 8-N-1\n`;
+          logText += `=======================================================\n\n`;
+
+          rows.forEach((row, i) => {
+            const time = row.querySelector('.col-time')?.textContent.trim() || '';
+            const mod = row.getAttribute('data-module') || '';
+            const msg = row.querySelector('.col-msg')?.textContent.trim() || '';
+            const idx = String(i + 1).padStart(3, '0');
+            const paddedMod = mod.padEnd(6, ' ');
+            logText += `[#${idx}] ${time} | ${paddedMod} | ${msg}\n`;
+          });
+
+          const blob = new Blob([logText], { type: 'text/plain;charset=utf-8' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `TARANG_UART_LOG_${Date.now()}.log`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        });
+      }
+
+      // Initial stats update
+      updateStatsBreakdown();
+    }
+  </script>
+</body>
+</html>

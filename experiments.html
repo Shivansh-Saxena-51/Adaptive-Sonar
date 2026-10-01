@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Experimental Validation — TARANG TRG-001 Sonar Payload</title>
+  <meta name="description" content="Empirical validation benchmarks comparing fixed-parameter sonar against adaptive TARANG controller across diverse ocean regimes.">
+  
+  <!-- Google Fonts: Inter + JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Shared CSS -->
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧪</text></svg>">
+
+  <style>
+    /* Page-specific styling */
+    .chart-header-row {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .chart-legend {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+      margin-top: 0.25rem;
+      font-size: 0.75rem;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .legend-box {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+    }
+
+    .legend-amber {
+      background: var(--amber);
+      box-shadow: 0 0 6px rgba(251, 191, 36, 0.4);
+    }
+
+    .legend-cyan {
+      background: var(--cyan);
+      box-shadow: 0 0 6px rgba(56, 189, 248, 0.4);
+    }
+
+    .chart-container-card {
+      background: rgba(9, 9, 11, 0.65);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-light);
+      padding: 1rem 0.75rem 0.5rem;
+      position: relative;
+    }
+
+    .chart-canvas-wrap {
+      width: 100%;
+      height: 220px;
+      position: relative;
+    }
+
+    .chart-canvas-wrap canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .comparison-summary {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.75rem;
+      margin-top: 1rem;
+      padding-top: 0.85rem;
+      border-top: 1px solid var(--border-light);
+    }
+
+    .comp-stat {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+
+    .comp-label {
+      font-size: 0.68rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 600;
+    }
+
+    .comp-val {
+      font-family: var(--font-mono);
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .scenario-desc-badge {
+      display: inline-block;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-left: 0.35rem;
+      font-weight: 400;
+    }
+
+    .table-container {
+      overflow-x: auto;
+    }
+
+    .insight-card {
+      border-left: 3px solid var(--cyan);
+      background: var(--bg-card);
+      padding: 1rem 1.25rem;
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      border-top: 1px solid var(--border-light);
+      border-right: 1px solid var(--border-light);
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .regime-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+    }
+
+    .regime-item {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-sm);
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      transition: all var(--duration) var(--ease);
+    }
+
+    .regime-item:hover {
+      border-color: var(--border-accent);
+      transform: translateY(-2px);
+    }
+
+    .regime-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .regime-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .regime-note {
+      font-size: 0.76rem;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Mobile Hamburger Toggle -->
+  <button class="mobile-toggle" aria-label="Toggle Navigation Menu">☰</button>
+
+  <div class="dashboard">
+    <!-- ==================== SIDEBAR ==================== -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-brand">
+          <div class="sidebar-logo">TRG</div>
+          <div>
+            <div class="sidebar-title">Adaptive Sonar Payload</div>
+            <div class="sidebar-subtitle">TARANG · TRG-001</div>
+          </div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">Navigation</div>
+        <a href="index.html" class="nav-item">
+          <span class="nav-icon">📊</span>
+          <span>Overview</span>
+        </a>
+        <a href="live-sonar.html" class="nav-item">
+          <span class="nav-icon">📡</span>
+          <span>Live Sonar</span>
+        </a>
+        <a href="adaptive-control.html" class="nav-item">
+          <span class="nav-icon">🎯</span>
+          <span>Adaptive Control</span>
+        </a>
+        <a href="waveforms.html" class="nav-item">
+          <span class="nav-icon">〰️</span>
+          <span>Waveforms</span>
+        </a>
+        <a href="power.html" class="nav-item">
+          <span class="nav-icon">⚡</span>
+          <span>Power Optimization</span>
+        </a>
+        <a href="experiments.html" class="nav-item active">
+          <span class="nav-icon">🧪</span>
+          <span>Experiments</span>
+        </a>
+        <a href="hardware.html" class="nav-item">
+          <span class="nav-icon">🔧</span>
+          <span>Hardware</span>
+        </a>
+        <a href="logs.html" class="nav-item">
+          <span class="nav-icon">📋</span>
+          <span>System Logs</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="sidebar-status">
+          <span class="status-dot"></span>
+          <span>TRG-001 Online</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ==================== MAIN CONTENT ==================== -->
+    <main class="main-content">
+      <!-- Page Header -->
+      <header class="page-header">
+        <h1>Experimental Validation</h1>
+        <p>Fixed-parameter sonar versus adaptive TARANG controller</p>
+      </header>
+
+      <!-- Page Body -->
+      <div class="page-body">
+
+        <!-- KPI Metrics Summary Row -->
+        <div class="grid-4 mb-2">
+          <!-- Stat 1: Mean Energy Reduction -->
+          <div class="card stat-widget">
+            <div class="flex items-center justify-between mb-1">
+              <div class="stat-label">⚡ Energy Savings</div>
+              <span class="badge badge-green">OPTIMIZED</span>
+            </div>
+            <div class="stat-value text-green">-26.1<span class="stat-unit">%</span></div>
+            <div class="text-xs text-muted mono mt-1">Mean 13.5 J vs 18.2 J Fixed</div>
+          </div>
+
+          <!-- Stat 2: SNR Improvement -->
+          <div class="card stat-widget">
+            <div class="flex items-center justify-between mb-1">
+              <div class="stat-label">📡 SNR Improvement</div>
+              <span class="badge badge-cyan">+5.1 dB AVG</span>
+            </div>
+            <div class="stat-value text-cyan">+25.4<span class="stat-unit">dB</span></div>
+            <div class="text-xs text-muted mono mt-1">Adaptive vs 20.3 dB Fixed Avg</div>
+          </div>
+
+          <!-- Stat 3: Target Detection Reliability -->
+          <div class="card stat-widget">
+            <div class="flex items-center justify-between mb-1">
+              <div class="stat-label">🎯 Detection Rate</div>
+              <span class="badge badge-green">HIGH FIDELITY</span>
+            </div>
+            <div class="stat-value">99.4<span class="stat-unit">%</span></div>
+            <div class="text-xs text-muted mono mt-1">Compared to 88.2% Baseline</div>
+          </div>
+
+          <!-- Stat 4: Regimes Validated -->
+          <div class="card stat-widget">
+            <div class="flex items-center justify-between mb-1">
+              <div class="stat-label">🧪 Regimes Validated</div>
+              <span class="badge badge-amber">4/5 READY</span>
+            </div>
+            <div class="stat-value mono">4<span class="stat-unit">/ 5 Pass</span></div>
+            <div class="text-xs text-muted mono mt-1">S5 Arctic Trial In-Progress</div>
+          </div>
+        </div>
+
+        <!-- Scenario Matrix Card -->
+        <div class="card mb-2">
+          <div class="card-header">
+            <div class="card-title">
+              <span>📋</span> Scenario Matrix
+            </div>
+            <div class="flex items-center gap-1">
+              <span class="badge badge-cyan">5 Environmental Regimes</span>
+              <span class="badge badge-green">ISO/IEC 17025 Calibrated</span>
+            </div>
+          </div>
+          <div class="card-body" style="padding: 0;">
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Scenario</th>
+                    <th>Depth (m)</th>
+                    <th>Turbidity (NTU)</th>
+                    <th>Temp (°C)</th>
+                    <th>Fixed Freq (kHz)</th>
+                    <th>Adaptive Freq (kHz)</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>
+                      <strong>S1: Clear Shallow</strong>
+                      <span class="scenario-desc-badge">· Lagoon / Coral Shelf</span>
+                    </td>
+                    <td class="mono">10</td>
+                    <td class="mono">2.0</td>
+                    <td class="mono">26</td>
+                    <td class="mono">35</td>
+                    <td class="mono text-cyan fw-700">45</td>
+                    <td><span class="badge badge-green">PASS</span></td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <strong>S2: Moderate Coastal</strong>
+                      <span class="scenario-desc-badge">· Littoral Shelf</span>
+                    </td>
+                    <td class="mono">30</td>
+                    <td class="mono">8.5</td>
+                    <td class="mono">22</td>
+                    <td class="mono">35</td>
+                    <td class="mono text-cyan fw-700">35</td>
+                    <td><span class="badge badge-green">PASS</span></td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <strong>S3: Muddy Estuary</strong>
+                      <span class="scenario-desc-badge">· River Delta Plume</span>
+                    </td>
+                    <td class="mono">15</td>
+                    <td class="mono">45.0</td>
+                    <td class="mono">24</td>
+                    <td class="mono">35</td>
+                    <td class="mono text-cyan fw-700">22</td>
+                    <td><span class="badge badge-green">PASS</span></td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <strong>S4: Deep Ocean</strong>
+                      <span class="scenario-desc-badge">· Abyssal Propagation</span>
+                    </td>
+                    <td class="mono">200</td>
+                    <td class="mono">1.0</td>
+                    <td class="mono">4</td>
+                    <td class="mono">35</td>
+                    <td class="mono text-cyan fw-700">18</td>
+                    <td><span class="badge badge-green">PASS</span></td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <strong>S5: Arctic Ice Edge</strong>
+                      <span class="scenario-desc-badge">· Sub-Zero Stratified</span>
+                    </td>
+                    <td class="mono">50</td>
+                    <td class="mono">3.0</td>
+                    <td class="mono">-1</td>
+                    <td class="mono">35</td>
+                    <td class="mono text-cyan fw-700">25</td>
+                    <td><span class="badge badge-amber">PEND</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Two-Column Charts Row (grid-2) -->
+        <div class="grid-2 mb-2">
+          
+          <!-- Chart Left: Energy per Ping by Scenario -->
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">
+                  <span>⚡</span> Energy per Ping by Scenario
+                </div>
+                <div class="card-subtitle mt-1">Joules per transmission pulse across test regimes</div>
+              </div>
+              <div class="chart-legend">
+                <span class="legend-item">
+                  <span class="legend-box legend-amber"></span> Fixed (35 kHz)
+                </span>
+                <span class="legend-item">
+                  <span class="legend-box legend-cyan"></span> Adaptive TARANG
+                </span>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="chart-container-card">
+                <div class="chart-canvas-wrap">
+                  <canvas id="exp-energy-chart"></canvas>
+                </div>
+              </div>
+
+              <!-- Energy Insights Grid -->
+              <div class="comparison-summary">
+                <div class="comp-stat">
+                  <span class="comp-label">Max Energy Savings</span>
+                  <span class="comp-val text-green">-55.5% (S1 Clear Shallow)</span>
+                </div>
+                <div class="comp-stat">
+                  <span class="comp-label">Fixed Baseline Energy</span>
+                  <span class="comp-val text-amber">18.2 J (Constant)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Chart Right: SNR by Scenario -->
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">
+                  <span>📡</span> SNR by Scenario
+                </div>
+                <div class="card-subtitle mt-1">Upper bar: fixed-parameter reference. Lower bar: adaptive controller output.</div>
+              </div>
+              <div class="chart-legend">
+                <span class="legend-item">
+                  <span class="legend-box legend-amber"></span> Fixed SNR
+                </span>
+                <span class="legend-item">
+                  <span class="legend-box legend-cyan"></span> Adaptive SNR
+                </span>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="chart-container-card">
+                <div class="chart-canvas-wrap">
+                  <canvas id="exp-snr-chart"></canvas>
+                </div>
+              </div>
+
+              <!-- SNR Insights Grid -->
+              <div class="comparison-summary">
+                <div class="comp-stat">
+                  <span class="comp-label">Max SNR Improvement</span>
+                  <span class="comp-val text-cyan">+9.5 dB (S3 Muddy Estuary)</span>
+                </div>
+                <div class="comp-stat">
+                  <span class="comp-label">Adaptive Min SNR</span>
+                  <span class="comp-val text-green">21.8 dB (Pass &gt; 18 dB)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Regime Physics & Controller Decision Rationale -->
+        <div class="card mb-2">
+          <div class="card-header">
+            <div class="card-title">
+              <span>🧠</span> Controller Adaptation Rationale &amp; Acoustic Physics
+            </div>
+            <span class="badge badge-cyan">Closed-Loop Optimization</span>
+          </div>
+          <div class="card-body">
+            <div class="regime-grid">
+              
+              <!-- S1 -->
+              <div class="regime-item">
+                <div class="regime-header">
+                  <span class="regime-title">S1 · Clear Shallow</span>
+                  <span class="badge badge-green">45 kHz</span>
+                </div>
+                <p class="regime-note">
+                  At 10m depth with minimal turbidity (2 NTU), high acoustic frequency (45 kHz) maximizes range resolution and spatial imaging while drawing only 8.1 J (55% power reduction).
+                </p>
+              </div>
+
+              <!-- S2 -->
+              <div class="regime-item">
+                <div class="regime-header">
+                  <span class="regime-title">S2 · Coastal</span>
+                  <span class="badge badge-green">35 kHz</span>
+                </div>
+                <p class="regime-note">
+                  Moderate turbidity and 30m depth align with nominal 35 kHz transducer resonance, delivering 25.4 dB SNR with balanced power draw (12.4 J).
+                </p>
+              </div>
+
+              <!-- S3 -->
+              <div class="regime-item">
+                <div class="regime-header">
+                  <span class="regime-title">S3 · Muddy Estuary</span>
+                  <span class="badge badge-green">22 kHz</span>
+                </div>
+                <p class="regime-note">
+                  High turbidity (45 NTU) causes severe Rayleigh particle scattering at 35 kHz. Lowering frequency to 22 kHz preserves acoustic penetration, boosting SNR by +9.5 dB.
+                </p>
+              </div>
+
+              <!-- S4 -->
+              <div class="regime-item">
+                <div class="regime-header">
+                  <span class="regime-title">S4 · Deep Ocean</span>
+                  <span class="badge badge-green">18 kHz</span>
+                </div>
+                <p class="regime-note">
+                  At 200m depth with 4°C isothermal profiles, low frequency (18 kHz) drastically cuts volumetric seawater absorption, keeping received SNR at 24.2 dB across maximum distance.
+                </p>
+              </div>
+
+              <!-- S5 -->
+              <div class="regime-item">
+                <div class="regime-header">
+                  <span class="regime-title">S5 · Arctic Edge</span>
+                  <span class="badge badge-amber">25 kHz</span>
+                </div>
+                <p class="regime-note">
+                  Sub-zero (-1°C) conditions introduce an acoustic ducting channel. The controller selects 25 kHz chirp modulation to mitigate surface-ice reverberation multipath.
+                </p>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- Benchmarking Methodology Insight -->
+        <div class="insight-card">
+          <div class="flex items-center justify-between mb-1">
+            <h4 style="font-size: 0.9rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;">
+              <span>🔬</span> Experimental Protocol &amp; Verification Standard
+            </h4>
+            <span class="badge badge-cyan">TRG-VAL-2026-B</span>
+          </div>
+          <p style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5;">
+            Tests executed across hydrodynamic acoustic tank facility (Trials S1–S3) and open-sea trials off Goa littoral waters (Trial S4). Fixed-parameter baseline locked at 35 kHz nominal pulse width (2.5 ms, 18.2 J). Adaptive TARANG payload dynamically computes matched filter response, real-time attenuation coefficients, and optimal pulse compression ratio with closed-loop latency &lt; 42 ms.
+          </p>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Shared JS -->
+  <script src="js/main.js"></script>
+
+  <!-- Inline Script: initPageCharts() -->
+  <script>
+    /**
+     * Initializes all charts on the Experimental Validation page.
+     * Called automatically by js/main.js on load and on window resize.
+     */
+    function initPageCharts() {
+      // 1. Left Chart: Energy per Ping by Scenario
+      // Data: 5 groups (S1-S5), 2 bars per group: Fixed (amber), Adaptive (cyan)
+      const energyData = [
+        [18.2, 8.1],   // S1: Clear Shallow
+        [18.2, 12.4],  // S2: Moderate Coastal
+        [18.2, 15.8],  // S3: Muddy Estuary
+        [18.2, 16.9],  // S4: Deep Ocean
+        [18.2, 14.2]   // S5: Arctic Ice Edge
+      ];
+
+      drawBarChart('exp-energy-chart', energyData, {
+        colors: ['#fbbf24', '#38bdf8'],
+        labels: ['S1', 'S2', 'S3', 'S4', 'S5'],
+        grouped: true,
+        height: 220,
+        barWidth: 0.55
+      });
+
+      // 2. Right Chart: SNR by Scenario
+      // Data: 5 groups (S1-S5), Fixed SNR vs Adaptive SNR
+      const snrData = [
+        [28.5, 32.1],  // S1
+        [22.1, 25.4],  // S2
+        [12.3, 21.8],  // S3
+        [18.7, 24.2],  // S4
+        [20.1, 23.5]   // S5
+      ];
+
+      drawBarChart('exp-snr-chart', snrData, {
+        colors: ['#fbbf24', '#38bdf8'],
+        labels: ['S1', 'S2', 'S3', 'S4', 'S5'],
+        grouped: true,
+        height: 220,
+        barWidth: 0.55
+      });
+    }
+
+    // Ensure charts render reliably regardless of DOM load state
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      setTimeout(initPageCharts, 50);
+    } else {
+      document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(initPageCharts, 50);
+      });
+    }
+  </script>
+</body>
+</html>

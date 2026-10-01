@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Software-Defined Waveforms — AquaPulse SDT</title>
+  <meta name="description" content="Transmit waveform library reconfigurable at runtime by the STM32 Direct Digital Synthesis (DDS) core for AUV sonar payloads.">
+  
+  <!-- Google Fonts: Inter + JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Shared CSS -->
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>〰️</text></svg>">
+
+  <style>
+    /* Page-specific styling enhancements */
+    .waveform-card {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      transition: all var(--duration) var(--ease);
+    }
+
+    .waveform-card:hover {
+      border-color: var(--border-accent);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    .waveform-chart-wrap {
+      background: rgba(9, 9, 11, 0.6);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-light);
+      padding: 0.5rem;
+      margin: 0.75rem 0 1rem;
+      position: relative;
+    }
+
+    .waveform-chart-wrap canvas {
+      display: block;
+      width: 100%;
+    }
+
+    .waveform-watermark {
+      position: absolute;
+      top: 8px;
+      right: 12px;
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      pointer-events: none;
+    }
+
+    .spec-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.75rem;
+      padding-top: 0.85rem;
+      border-top: 1px solid var(--border-light);
+    }
+
+    .spec-item {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .spec-label {
+      font-size: 0.68rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      font-weight: 600;
+    }
+
+    .spec-value {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+    }
+
+    .dds-summary-bar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .dds-stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .dds-stat-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .dds-stat-content {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .dds-stat-title {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      font-weight: 500;
+    }
+
+    .dds-stat-val {
+      font-family: var(--font-mono);
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .table-container {
+      overflow-x: auto;
+    }
+
+    @media (max-width: 1024px) {
+      .dds-summary-bar {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 768px) {
+      .dds-summary-bar {
+        grid-template-columns: 1fr;
+      }
+      .spec-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.6rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Mobile Menu Toggle Button -->
+  <button class="mobile-toggle" aria-label="Toggle navigation">☰</button>
+
+  <div class="dashboard">
+
+    <!-- ===== 1. SIDEBAR ===== -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-brand">
+          <div class="sidebar-logo">AP</div>
+          <div>
+            <div class="sidebar-title">AquaPulse SDT</div>
+            <div class="sidebar-subtitle">AUV Sonar Payload</div>
+          </div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">Payload Systems</div>
+        <a href="index.html" class="nav-item">
+          <span class="nav-icon">📊</span>
+          <span>Overview</span>
+        </a>
+        <a href="live-sonar.html" class="nav-item">
+          <span class="nav-icon">📡</span>
+          <span>Live Sonar</span>
+        </a>
+        <a href="adaptive-control.html" class="nav-item">
+          <span class="nav-icon">🎯</span>
+          <span>Adaptive Control</span>
+        </a>
+        <a href="waveforms.html" class="nav-item active">
+          <span class="nav-icon">〰️</span>
+          <span>Waveforms</span>
+        </a>
+        <a href="power.html" class="nav-item">
+          <span class="nav-icon">⚡</span>
+          <span>Power Optimization</span>
+        </a>
+        <a href="experiments.html" class="nav-item">
+          <span class="nav-icon">🧪</span>
+          <span>Experiments</span>
+        </a>
+        <a href="hardware.html" class="nav-item">
+          <span class="nav-icon">🔧</span>
+          <span>Hardware</span>
+        </a>
+        <a href="logs.html" class="nav-item">
+          <span class="nav-icon">📋</span>
+          <span>System Logs</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="sidebar-status">
+          <span class="status-dot"></span>
+          <span>DDS Core: Synthesizing</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ===== MAIN CONTENT ===== -->
+    <main class="main-content">
+
+      <!-- ===== 2. PAGE HEADER ===== -->
+      <header class="page-header">
+        <h1>Software-Defined Waveforms</h1>
+        <p>Transmit waveform library — reconfigurable at runtime by the STM32 DDS core</p>
+      </header>
+
+      <!-- ===== PAGE BODY ===== -->
+      <div class="page-body">
+
+        <!-- DDS Core Status Summary Bar -->
+        <div class="dds-summary-bar">
+          <div class="dds-stat-card">
+            <div class="dds-stat-icon text-cyan">⚡</div>
+            <div class="dds-stat-content">
+              <span class="dds-stat-title">DDS Sample Rate</span>
+              <span class="dds-stat-val">1.20 <span class="stat-unit">MSPS</span></span>
+            </div>
+          </div>
+          <div class="dds-stat-card">
+            <div class="dds-stat-icon text-green">🎯</div>
+            <div class="dds-stat-content">
+              <span class="dds-stat-title">Phase Accumulator</span>
+              <span class="dds-stat-val">32 <span class="stat-unit">Bit</span></span>
+            </div>
+          </div>
+          <div class="dds-stat-card">
+            <div class="dds-stat-icon text-purple">🔄</div>
+            <div class="dds-stat-content">
+              <span class="dds-stat-title">DMA Transfer Mode</span>
+              <span class="dds-stat-val">Dual-Buffer</span>
+            </div>
+          </div>
+          <div class="dds-stat-card">
+            <div class="dds-stat-icon text-amber">⏱️</div>
+            <div class="dds-stat-content">
+              <span class="dds-stat-title">Switching Latency</span>
+              <span class="dds-stat-val">&lt; 12.4 <span class="stat-unit">µs</span></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== 3. FOUR WAVEFORM CARDS (2x2 GRID) ===== -->
+        <div class="grid-2 mb-2">
+
+          <!-- Card 1: Standard Pulse -->
+          <div class="card waveform-card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">
+                  <span>Standard Pulse</span>
+                </div>
+                <div class="card-subtitle">CW tone burst, lowest processing cost</div>
+              </div>
+              <span class="badge badge-cyan">CW Tone</span>
+            </div>
+            <div class="card-body">
+              <div class="waveform-chart-wrap">
+                <canvas id="wave-pulse" height="120"></canvas>
+                <div class="waveform-watermark">f = 35 kHz | Sine Burst</div>
+              </div>
+              <div class="spec-grid">
+                <div class="spec-item">
+                  <span class="spec-label">Frequency</span>
+                  <span class="spec-value mono">35 kHz</span>
+                </div>
+                <div class="spec-item">
+                  <span class="spec-label">Duration</span>
+                  <span class="spec-value mono">1.0 ms</span>
+                </div>
+                <div class="spec-item">
+                  <span class="spec-label">Cost</span>
+                  <span class="spec-value mono text-green">Minimal</span>
+                </div>
+                <div class="spec-item">
+                  <span class="spec-label">Use</span>
+                  <span class="spec-value mono text-cyan">Search mode</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 2: LFM / Chirp -->
+          <div class="card waveform-card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">
+                  <span>LFM / Chirp</span>
+                </div>
+                <div class="card-subtitle">Linear frequency modulation, pulse compression</div>
+              </div>
+              <span class="badge badge-cyan">Chirp</span>
+            </div>
+            <div class="card-body">
+              <div class="waveform-chart-wrap">
+                <canvas id="wave-lfm" height="120"></canvas>
+                <div class="waveform-watermark">B = 10 kHz | Linear Up-Chirp</div>
+              </div>
+              <div class="spec-grid">
+                <div class="spec-item">
+                  <span class="spec-label">Band</span>
+                  <span class="spec-value mono">30-40 kHz</span>
+                </div>
+                <div class="spec-item">
+                  <span class="spec-label">Duration</span>
+                  <span class="spec-value mono">2.0 ms</span>
+                </div>
+                <div class="spec-item">
+                  <span class="spec-label">Compression</span>
+                  <span class="spec-value mono text-cyan">20 dB</span>
+                </div>
+                <div class="spec-item">
+                  <span class="spec-label">Use</span>
+                  <span class="spec-value mono text-cyan">Primary</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 3: Frequency Sweep -->
+          <div class="card waveform-card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">
+                  <span>Frequency Sweep</span>
+                </div>
+                <div class="card-subtitle">Wideband sweep for fine range resolution</div>
+              </div>
+              <span class="badge badge-green">Wideband</span>
+            </div>
+            <div class="card-body">
+              <div class="waveform-chart-wrap">
+                <canvas id="wave-sweep" height="120"></canvas>
+                <div class="waveform-watermark">B = 45 kHz | Hyperbolic Sweep</div>
+              </div>
+              <div class="spec-grid">
+                <div class="spec-item">
+                  <span class="spec-label">Band</span>
+                  <span class="spec-value mono">15-60 kHz</span>
+                </div>
+                <div class="spec-item">
+                  <span class="spec-label">Duration</span>
+                  <span class="spec-value mono">5.0 ms</span>
+                </div>
+                <div class="spec-item">
+                  <span class="spec-label">Resolution</span>
+                  <span class="spec-value mono text-green">Ultra-fine</span>
+                </div>
+                <div class="spec-item">
+                  <span class="spec-label">Use</span>
+                  <span class="spec-value mono text-green">Inspect</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 4: Phase-Coded Pulse -->
+          <div class="card waveform-card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">
+                  <span>Phase-Coded Pulse</span>
+                </div>
+                <div class="card-subtitle">Barker-13 coded, noise resilient</div>
+              </div>
+              <span class="badge badge-purple">Barker-13</span>
+            </div>
+            <div class="card-body">
+              <div class="waveform-chart-wrap">
+                <canvas id="wave-phase" height="120"></canvas>
+                <div class="waveform-watermark">13-Chip BPSK | Phase Inversion</div>
+              </div>
+              <div class="spec-grid">
+                <div class="spec-item">
+                  <span class="spec-label">Code</span>
+                  <span class="spec-value mono">Barker-13</span>
+                </div>
+                <div class="spec-item">
+                  <span class="spec-label">Length</span>
+                  <span class="spec-value mono">13 chips</span>
+                </div>
+                <div class="spec-item">
+                  <span class="spec-label">Gain</span>
+                  <span class="spec-value mono text-purple">11.1 dB</span>
+                </div>
+                <div class="spec-item">
+                  <span class="spec-label">Use</span>
+                  <span class="spec-value mono text-purple">High-noise</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ===== 4. WAVEFORM COMPARISON TABLE ===== -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">
+                <span>Waveform Comparison</span>
+              </div>
+              <div class="card-subtitle">Performance, energy requirements, and operational envelope matrix</div>
+            </div>
+            <span class="badge badge-cyan">STM32 DMA Engine</span>
+          </div>
+          <div class="card-body">
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Waveform</th>
+                    <th>Bandwidth</th>
+                    <th>Duration</th>
+                    <th>Processing Gain</th>
+                    <th>SNR Impact</th>
+                    <th>Power Cost</th>
+                    <th>Best For</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>
+                      <div class="flex items-center gap-1">
+                        <span class="text-cyan fw-700">〰️</span>
+                        <div>
+                          <strong>Standard Pulse</strong>
+                          <div class="text-xs text-dim">Continuous Wave Tone</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="mono">Single-Tone (35 kHz)</td>
+                    <td class="mono">1.0 ms</td>
+                    <td class="mono">0.0 dB</td>
+                    <td><span class="badge badge-green">Baseline (0 dB)</span></td>
+                    <td><span class="mono text-green">1.2 W (Minimal)</span></td>
+                    <td><span class="badge badge-cyan">Search mode</span></td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <div class="flex items-center gap-1">
+                        <span class="text-cyan fw-700">📈</span>
+                        <div>
+                          <strong>LFM / Chirp</strong>
+                          <div class="text-xs text-dim">Linear Up/Down Modulation</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="mono">10 kHz (30–40 kHz)</td>
+                    <td class="mono">2.0 ms</td>
+                    <td class="mono text-cyan">+13.0 to +20.0 dB</td>
+                    <td><span class="badge badge-cyan">+15.0 dB Matched</span></td>
+                    <td><span class="mono text-amber">2.8 W (Moderate)</span></td>
+                    <td><span class="badge badge-cyan">Primary</span></td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <div class="flex items-center gap-1">
+                        <span class="text-green fw-700">📊</span>
+                        <div>
+                          <strong>Frequency Sweep</strong>
+                          <div class="text-xs text-dim">Hyperbolic Wideband</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="mono">45 kHz (15–60 kHz)</td>
+                    <td class="mono">5.0 ms</td>
+                    <td class="mono text-green">+18.5 to +24.0 dB</td>
+                    <td><span class="badge badge-green">+21.0 dB Ultra-res</span></td>
+                    <td><span class="mono text-red">4.1 W (High)</span></td>
+                    <td><span class="badge badge-green">Inspect</span></td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <div class="flex items-center gap-1">
+                        <span class="text-purple fw-700">🔀</span>
+                        <div>
+                          <strong>Phase-Coded Pulse</strong>
+                          <div class="text-xs text-dim">Barker-13 Chip Sequence</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="mono">25 kHz Eqv (13 Chips)</td>
+                    <td class="mono">1.3 ms</td>
+                    <td class="mono text-purple">+11.1 dB</td>
+                    <td><span class="badge badge-purple">+12.5 dB Anti-jam</span></td>
+                    <td><span class="mono text-cyan">2.1 W (Low-Med)</span></td>
+                    <td><span class="badge badge-purple">High-noise</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Shared JS -->
+  <script src="js/main.js"></script>
+
+  <!-- ===== 5. INLINE SCRIPT ===== -->
+  <script>
+    function initPageCharts() {
+      drawWaveform('wave-pulse', 'pulse', {height: 120, color: '#38bdf8', freq: 5});
+      drawWaveform('wave-lfm', 'lfm', {height: 120, color: '#38bdf8', freq: 5, bandwidth: 3});
+      drawWaveform('wave-sweep', 'sweep', {height: 120, color: '#4ade80', freq: 5});
+      drawWaveform('wave-phase', 'phase', {height: 120, color: '#a78bfa', freq: 5});
+    }
+
+    // Explicit fallback in case DOMContentLoaded fired before inline script evaluation
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      setTimeout(initPageCharts, 50);
+    }
+  </script>
+</body>
+</html>
